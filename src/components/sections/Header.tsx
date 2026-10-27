@@ -173,8 +173,8 @@ export function Header() {
     <header
       className={`sticky top-0 z-40 w-full transition-all duration-300 ${
         isScrolled
-          ? "bg-white/95 backdrop-blur-md shadow-xs border-b border-[#E5E7E0]/80 py-3"
-          : "bg-[#FAF9F6]/90 backdrop-blur-sm py-4 border-b border-transparent"
+          ? "bg-white/85 backdrop-blur-xl shadow-card border-b border-[#E5E7E0]/90 py-2.5"
+          : "bg-[#FAF9F6]/85 backdrop-blur-md py-3.5 border-b border-black/[0.03]"
       }`}
     >
       <div className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -250,16 +250,16 @@ export function Header() {
           {user && (
             <Link
               href={mainHubUrl}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-bold text-xs shadow-xs transition hover:scale-102 ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs shadow-card hover:shadow-hover transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
                 isOrganizer
-                  ? "bg-[#1F4D36] text-white hover:bg-[#163b29] border border-[#2e6949]"
+                  ? "bg-gradient-to-r from-[#1F4D36] to-[#143D29] text-white border border-emerald-500/40"
                   : isAdmin
-                  ? "bg-purple-900 text-purple-100 hover:bg-purple-950 border border-purple-500/40"
-                  : "bg-teal-800 text-white hover:bg-teal-900 border border-teal-600"
+                  ? "bg-gradient-to-r from-purple-900 to-purple-800 text-purple-100 border border-purple-500/40"
+                  : "bg-gradient-to-r from-[#1F4D36] to-[#143D29] text-white border border-emerald-500/40"
               }`}
               title={`Chuyển đến ${mainHubName}`}
             >
-              <RoleIcon className="w-3.5 h-3.5" />
+              <RoleIcon className="w-3.5 h-3.5 text-[#F28C1B]" />
               <span>{mainHubName}</span>
             </Link>
           )}

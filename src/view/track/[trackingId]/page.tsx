@@ -10,9 +10,7 @@ import {
   Clock,
   ShieldCheck,
   ArrowLeft,
-  Calendar,
   Building2,
-  CheckCircle2,
   AlertCircle,
   Eye,
   X,
@@ -21,7 +19,6 @@ import { transparencyService } from "@/services/transparencyService";
 import type { PublicTrackingResult } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { APP_CONFIG } from "@/lib/constants";
 
 export default function TrackingDetailPage({
   params,

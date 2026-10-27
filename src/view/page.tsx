@@ -7,6 +7,7 @@ import { AboutMission } from "@/components/sections/AboutMission";
 import { StatsBar } from "@/components/sections/StatsBar";
 import { FeaturedEvents } from "@/components/sections/FeaturedEvents";
 import { HowItWorks } from "@/components/sections/HowItWorks";
+import { HomeTrackingSection } from "@/components/sections/HomeTrackingSection";
 import { CtaBanner } from "@/components/sections/CtaBanner";
 
 export default function HomePage() {
@@ -30,7 +31,10 @@ export default function HomePage() {
       {/* Tầng 6: Quy trình minh bạch khép kín (Khối đóng khung hiện đại) */}
       <HowItWorks />
 
-      {/* Tầng 7: Banner cam kết & kêu gọi hành động chân trang */}
+      {/* Tầng 7: Trải nghiệm tra cứu vận đơn trực tuyến với Mockup hành trình */}
+      <HomeTrackingSection />
+
+      {/* Tầng 8: Banner cam kết & kêu gọi hành động chân trang */}
       <CtaBanner />
     </div>
   );

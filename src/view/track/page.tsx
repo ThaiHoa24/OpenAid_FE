@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Package, ShieldCheck, ArrowRight, Layers, Clock } from "lucide-react";
+import { Package, ShieldCheck, ArrowRight, Layers, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { APP_CONFIG } from "@/lib/constants";
 
@@ -17,10 +17,10 @@ export default function TrackLandingPage() {
   };
 
   const sampleCodes = [
-    { code: "DON-2026-948201", label: "Gạo cứu trợ Hòa Vang (Đã trao tặng)" },
-    { code: "DON-2026-104928", label: "Mì ăn liền & Lương khô (Đang vận chuyển)" },
-    { code: "DON-2026-592810", label: "Nước khoáng đóng chai (Đã gom vào lô)" },
-    { code: "DON-2026-391048", label: "Sữa bột trẻ em (Đã nhập kho)" },
+    { code: "DON-2026-7K3Q9X", label: "50 kg Gạo tẻ thơm (Đã bàn giao tại thôn bản)" },
+    { code: "DON-2026-5W9K2N", label: "500 Chai nước khoáng (Đang trên chuyến xe)" },
+    { code: "DON-2026-3H6V8B", label: "60 kg Gạo cứu trợ (Đã nhập kho an toàn)" },
+    { code: "DON-2026-2F7J9K", label: "50 kg Gạo đóng góp (Mới cam kết)" },
   ];
 
   return (

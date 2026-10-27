@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { HeartHandshake, Send, ShieldCheck } from "lucide-react";
+import { HeartHandshake, Send, ShieldCheck, Heart } from "lucide-react";
 import { APP_CONFIG } from "@/lib/constants";
 
 export function Footer() {
@@ -24,7 +24,7 @@ export function Footer() {
           {/* Col 1: Brand & Bio */}
           <div className="sm:col-span-2 lg:col-span-1 space-y-4">
             <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1F4D36] to-[#133724] flex items-center justify-center text-white shadow-xs">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#1F4D36] to-[#0E2C1D] flex items-center justify-center text-white shadow-subtle group-hover:scale-105 transition-transform">
                 <HeartHandshake className="w-5 h-5 text-[#F28C1B]" />
               </div>
               <div className="flex flex-col">
@@ -48,22 +48,22 @@ export function Footer() {
             </h4>
             <ul className="space-y-2 text-xs text-[#5F6F66]">
               <li>
-                <Link href="/events" className="hover:text-[#F28C1B] transition">
+                <Link href="/events" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Khám phá chiến dịch
                 </Link>
               </li>
               <li>
-                <Link href="/track" className="hover:text-[#F28C1B] transition">
+                <Link href="/track" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Tra cứu vận đơn
                 </Link>
               </li>
               <li>
-                <Link href="/#how-it-works" className="hover:text-[#F28C1B] transition">
+                <Link href="/#how-it-works" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Quy trình hoạt động
                 </Link>
               </li>
               <li>
-                <Link href="/about" className="hover:text-[#F28C1B] transition">
+                <Link href="/about" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Về OpenAid
                 </Link>
               </li>
@@ -77,22 +77,22 @@ export function Footer() {
             </h4>
             <ul className="space-y-2 text-xs text-[#5F6F66]">
               <li>
-                <Link href="/organizer/dashboard" className="hover:text-[#F28C1B] transition">
+                <Link href="/organizer/dashboard" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Bàn điều phối Organizer
                 </Link>
               </li>
               <li>
-                <Link href="/about#transparency" className="hover:text-[#F28C1B] transition">
+                <Link href="/about#transparency" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Tiêu chuẩn sổ cái kho bãi
                 </Link>
               </li>
               <li>
-                <Link href="/about#privacy" className="hover:text-[#F28C1B] transition">
+                <Link href="/about#privacy" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Bảo vệ nhân phẩm người nhận
                 </Link>
               </li>
               <li>
-                <Link href="/register" className="hover:text-[#F28C1B] transition">
+                <Link href="/register" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Đăng ký tổ chức thiện nguyện
                 </Link>
               </li>
@@ -106,22 +106,22 @@ export function Footer() {
             </h4>
             <ul className="space-y-2 text-xs text-[#5F6F66]">
               <li>
-                <Link href="/about#help" className="hover:text-[#F28C1B] transition">
+                <Link href="/about#help" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Trung tâm trợ giúp
                 </Link>
               </li>
               <li>
-                <Link href="/about#terms" className="hover:text-[#F28C1B] transition">
+                <Link href="/about#terms" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Điều khoản sử dụng
                 </Link>
               </li>
               <li>
-                <Link href="/about#privacy" className="hover:text-[#F28C1B] transition">
+                <Link href="/about#privacy" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Chính sách bảo mật
                 </Link>
               </li>
               <li>
-                <Link href="/about#faq" className="hover:text-[#F28C1B] transition">
+                <Link href="/about#faq" className="hover:text-[#1F4D36] hover:font-bold transition-all">
                   Câu hỏi thường gặp
                 </Link>
               </li>
@@ -137,7 +137,7 @@ export function Footer() {
               Đăng ký nhận báo cáo kiểm toán định kỳ và thông báo khẩn cấp khi có thiên tai bão lũ.
             </p>
             {subscribed ? (
-              <p className="text-xs text-[#1F4D36] font-bold bg-[#E6EFE3] p-2.5 rounded-xl">
+              <p className="text-xs text-[#1F4D36] font-bold bg-[#E6EFE3] p-3 rounded-2xl border border-emerald-500/20 shadow-2xs">
                 Cảm ơn bạn đã đăng ký nhận thông tin từ OpenAid!
               </p>
             ) : (
@@ -148,13 +148,13 @@ export function Footer() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Nhập email của bạn..."
                   required
-                  className="w-full px-3.5 py-2.5 rounded-full border border-[#E5E7E0] bg-[#FAF9F6] text-xs placeholder:text-slate-400 focus:outline-none focus:border-[#1F4D36]"
+                  className="w-full px-4 py-2.5 rounded-full border border-[#E5E7E0] bg-[#FAF9F6] text-xs placeholder:text-slate-400 focus:outline-none focus:border-[#1F4D36] shadow-2xs"
                 />
                 <button
                   type="submit"
-                  className="w-full py-2.5 px-4 rounded-full bg-[#1F4D36] hover:bg-[#133724] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                  className="w-full py-2.5 px-4 rounded-full bg-gradient-to-r from-[#1F4D36] to-[#143D29] hover:from-[#17422E] hover:to-[#0E2C1D] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-subtle hover:shadow-hover hover:-translate-y-0.5 active:translate-y-0"
                 >
-                  <Send className="w-3 h-3" />
+                  <Send className="w-3.5 h-3.5" />
                   <span>Đăng ký nhận tin</span>
                 </button>
               </form>
