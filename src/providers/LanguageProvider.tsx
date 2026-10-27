@@ -18,38 +18,14 @@ const DEFAULT_LANG: Language = "vi";
 export const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>(DEFAULT_LANG);
+  const [language, setLanguageState] = useState<Language>("vi");
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY) as Language | null;
-      if (stored === "vi" || stored === "en") {
-        setLanguageState(stored);
-      }
+      localStorage.setItem(STORAGE_KEY, "vi");
     } catch {
-      // fallback to default
+      // fallback
     }
-
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY && (e.newValue === "vi" || e.newValue === "en")) {
-        setLanguageState(e.newValue as Language);
-      }
-    };
-
-    const handleCustomChange = (e: Event) => {
-      const customEvent = e as CustomEvent<Language>;
-      if (customEvent.detail === "vi" || customEvent.detail === "en") {
-        setLanguageState(customEvent.detail);
-      }
-    };
-
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("openaid-language-changed", handleCustomChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("openaid-language-changed", handleCustomChange);
-    };
   }, []);
 
   const setLanguage = useCallback((lang: Language) => {
@@ -75,7 +51,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       try {
         const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
         if (isNaN(d.getTime())) return String(date);
-        const locale = language === "vi" ? "vi-VN" : "en-US";
+        const locale = "vi-VN";
         return new Intl.DateTimeFormat(locale, options || {
           year: "numeric",
           month: "2-digit",
@@ -85,7 +61,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         return String(date);
       }
     },
-    [language]
+    []
   );
 
   const formatDateTime = useCallback(
@@ -94,7 +70,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       try {
         const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
         if (isNaN(d.getTime())) return String(date);
-        const locale = language === "vi" ? "vi-VN" : "en-US";
+        const locale = "vi-VN";
         return new Intl.DateTimeFormat(locale, options || {
           year: "numeric",
           month: "2-digit",
@@ -106,20 +82,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         return String(date);
       }
     },
-    [language]
+    []
   );
 
   const formatNumber = useCallback(
     (num: number | null | undefined, options?: Intl.NumberFormatOptions) => {
       if (num === null || num === undefined) return "0";
       try {
-        const locale = language === "vi" ? "vi-VN" : "en-US";
+        const locale = "vi-VN";
         return new Intl.NumberFormat(locale, options).format(num);
       } catch {
         return String(num);
       }
     },
-    [language]
+    []
   );
 
   const value = useMemo(

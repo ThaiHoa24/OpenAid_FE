@@ -1,0 +1,7 @@
+.navIndicator {
+  left: var(--indicator-left);
+  top: var(--indicator-top);
+  width: var(--indicator-width);
+  height: var(--indicator-height);
+  opacity: var(--indicator-opacity);
+}

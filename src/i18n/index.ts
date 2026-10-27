@@ -1,46 +1,49 @@
 import { Language } from "./types";
 import { vi } from "./vi";
-import { en } from "./en";
 
 export type { Language };
-export { vi, en };
+export { vi };
 
-export const translations: Record<Language, typeof vi> = {
+export const translations = {
   vi,
-  en,
 };
 
 export function getTranslation(
-  lang: Language,
   key: string,
   params?: Record<string, string | number>
+): string;
+export function getTranslation(
+  lang: Language | string,
+  key: string,
+  params?: Record<string, string | number>
+): string;
+export function getTranslation(
+  arg1: string,
+  arg2?: string | Record<string, string | number>,
+  arg3?: Record<string, string | number>
 ): string {
-  const dict = translations[lang] || translations.vi;
-  const parts = key.split(".");
+  let key: string;
+  let params: Record<string, string | number> | undefined;
 
-  let current: unknown = dict;
+  if (typeof arg2 === "string") {
+    // Called with getTranslation(lang, key, params)
+    key = arg2;
+    params = arg3;
+  } else {
+    // Called with getTranslation(key, params)
+    key = arg1;
+    params = arg2;
+  }
+
+  const parts = key.split(".");
+  let current: unknown = vi;
+
   for (const part of parts) {
     if (current && typeof current === "object" && part in current) {
       current = (current as Record<string, unknown>)[part];
     } else {
       current = undefined;
       break;
-    }
-  }
-
-  // Fallback to Vietnamese if not found
-  if (typeof current !== "string" && lang !== "vi") {
-    let fallback: unknown = translations.vi;
-    for (const part of parts) {
-      if (fallback && typeof fallback === "object" && part in fallback) {
-        fallback = (fallback as Record<string, unknown>)[part];
-      } else {
-        fallback = undefined;
-        break;
-      }
-    }
-    if (typeof fallback === "string") {
-      current = fallback;
     }
   }
 

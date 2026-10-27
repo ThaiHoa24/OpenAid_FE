@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  --background: #FAF9F6;
+  --foreground: #1C2B24;
+  --font-sans: Arial, "Helvetica Neue", Helvetica, sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: Arial, "Helvetica Neue", Helvetica, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+*, ::before, ::after {
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Standardize headings & titles to 700 weight in Arial */
+h1, h2, h3, h4, h5, h6 {
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+  font-weight: 700;
+}
+
+b, strong {
+  font-weight: 700;
+}
+
+p, span, label, input, select, textarea, button {
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+}
