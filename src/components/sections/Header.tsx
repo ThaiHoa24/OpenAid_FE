@@ -28,8 +28,9 @@ import { APP_CONFIG, NAV_LINKS } from "@/lib/constants";
 import { useAuth } from "@/hooks/useAuth";
 import styles from "@/styles/Header.module.css";
 
-export function Header() {
+export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
   const pathname = usePathname();
+  const isAuthPage = isTransparent ?? (pathname === "/login" || pathname === "/register");
   const { user, isOrganizer, isAdmin, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -171,10 +172,12 @@ export function Header() {
 
   return (
     <header
-      className={`sticky top-0 z-40 w-full transition-all duration-300 ${
-        isScrolled
-          ? "bg-white/85 backdrop-blur-xl shadow-card border-b border-[#E5E7E0]/90 py-2.5"
-          : "bg-[#FAF9F6]/85 backdrop-blur-md py-3.5 border-b border-black/[0.03]"
+      className={`z-40 w-full transition-all duration-300 ${
+        isAuthPage
+          ? "fixed top-0 left-0 right-0 bg-[#141822]/40 backdrop-blur-md py-3 border-b border-white/5"
+          : isScrolled
+          ? "sticky top-0 bg-white/85 backdrop-blur-xl shadow-card border-b border-[#E5E7E0]/90 py-2.5"
+          : "sticky top-0 bg-[#FAF9F6]/85 backdrop-blur-md py-3.5 border-b border-black/[0.03]"
       }`}
     >
       <div className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -190,15 +193,23 @@ export function Header() {
           }}
           className="flex items-center gap-3 group"
         >
-          <div className="w-10 h-10 rounded-2xl bg-[#1F4D36] flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-105">
+          <div className="w-10 h-10 rounded-2xl bg-[#1F4D36] flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-105 border border-white/10">
             <HeartHandshake className="w-6 h-6 text-[#F28C1B]" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-2xl tracking-tight text-[#1C2B24] leading-tight flex items-center gap-0.5">
-              Open<span className="text-[#1F4D36]">Aid</span>
+            <span
+              className={`font-bold text-2xl tracking-tight leading-tight flex items-center gap-0.5 ${
+                isAuthPage ? "text-white" : "text-[#1C2B24]"
+              }`}
+            >
+              Open<span className={isAuthPage ? "text-emerald-400" : "text-[#1F4D36]"}>Aid</span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#F28C1B] inline-block ml-0.5 mb-1" />
             </span>
-            <span className="text-[10px] font-bold text-[#4A5850] tracking-widest uppercase">
+            <span
+              className={`text-[10px] font-bold tracking-widest uppercase ${
+                isAuthPage ? "text-gray-400" : "text-[#4A5850]"
+              }`}
+            >
               {APP_CONFIG.tagline}
             </span>
           </div>
@@ -207,11 +218,17 @@ export function Header() {
         {/* Center: Desktop Navigation with Rubber Segment Sliding Pill Effect */}
         <nav
           ref={navRef}
-          className="relative hidden lg:flex items-center p-1 rounded-full bg-black/[0.035] border border-[#E5E7E0]/80 shadow-2xs backdrop-blur-xs"
+          className={`relative hidden lg:flex items-center p-1 rounded-full border shadow-2xs backdrop-blur-xs ${
+            isAuthPage
+              ? "bg-white/5 border-white/10"
+              : "bg-black/[0.035] border-[#E5E7E0]/80"
+          }`}
         >
           {/* Elastic Rubber Segment Sliding Pill */}
           <div
-            className={`${styles.navIndicator} absolute rounded-full bg-white shadow-[0_2px_10px_rgba(0,0,0,0.08)] border border-[#E5E7E0] pointer-events-none transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] z-0`}
+            className={`${styles.navIndicator} absolute rounded-full ${
+              isAuthPage ? "bg-white/15 border border-white/10" : "bg-white border border-[#E5E7E0]"
+            } shadow-[0_2px_10px_rgba(0,0,0,0.08)] pointer-events-none transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] z-0`}
             style={{
               "--indicator-left": `${indicatorStyle.left}px`,
               "--indicator-top": `${indicatorStyle.top}px`,
@@ -235,6 +252,8 @@ export function Header() {
                 className={`relative z-10 px-4 py-1.5 rounded-full text-sm font-semibold transition-colors duration-250 select-none ${
                   isActive
                     ? "text-[#F28C1B] font-bold"
+                    : isAuthPage
+                    ? "text-gray-300 hover:text-white"
                     : "text-[#1C2B24] hover:text-[#1F4D36]"
                 }`}
               >
@@ -267,7 +286,11 @@ export function Header() {
           {/* Circular Search Button */}
           <Link
             href="/track"
-            className="w-10 h-10 rounded-full border border-[#E5E7E0] hover:border-[#1F4D36] text-[#1C2B24] hover:text-[#1F4D36] hover:bg-[#E6EFE3]/60 flex items-center justify-center transition-all shadow-xs"
+            className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all shadow-xs ${
+              isAuthPage
+                ? "border-white/10 hover:border-emerald-400 text-gray-300 hover:text-white hover:bg-white/10"
+                : "border-[#E5E7E0] hover:border-[#1F4D36] text-[#1C2B24] hover:text-[#1F4D36] hover:bg-[#E6EFE3]/60"
+            }`}
             title="Tra cứu vận đơn"
           >
             <Search className="w-4 h-4" />
@@ -276,7 +299,11 @@ export function Header() {
           {/* Circular Favorite / Heart Button */}
           <Link
             href={user ? "/my/donations" : "/events"}
-            className="w-10 h-10 rounded-full border border-[#E5E7E0] hover:border-[#F28C1B] text-[#1C2B24] hover:text-[#F28C1B] hover:bg-amber-50/60 flex items-center justify-center transition-all shadow-xs"
+            className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all shadow-xs ${
+              isAuthPage
+                ? "border-white/10 hover:border-[#F28C1B] text-gray-300 hover:text-[#F28C1B] hover:bg-white/10"
+                : "border-[#E5E7E0] hover:border-[#F28C1B] text-[#1C2B24] hover:text-[#F28C1B] hover:bg-amber-50/60"
+            }`}
             title={user ? "Đóng góp của tôi" : "Khám phá chiến dịch"}
           >
             <Heart className="w-4 h-4" />
@@ -287,7 +314,11 @@ export function Header() {
             <button
               type="button"
               onClick={() => setUserDropdownOpen((o) => !o)}
-              className="w-10 h-10 rounded-full border border-[#E5E7E0] hover:border-[#1F4D36] text-[#1C2B24] hover:text-[#1F4D36] hover:bg-[#E6EFE3]/60 flex items-center justify-center transition-all shadow-xs cursor-pointer"
+              className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all shadow-xs cursor-pointer ${
+                isAuthPage
+                  ? "border-white/10 hover:border-emerald-400 text-gray-300 hover:text-white hover:bg-white/10"
+                  : "border-[#E5E7E0] hover:border-[#1F4D36] text-[#1C2B24] hover:text-[#1F4D36] hover:bg-[#E6EFE3]/60"
+              }`}
               title={user ? user.name : "Tài khoản"}
             >
               {user ? (

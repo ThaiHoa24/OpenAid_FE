@@ -30,6 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isOrganizerRoute = pathname?.startsWith("/organizer");
   const isAdminRoute = pathname?.startsWith("/admin");
+  const isAuthRoute = pathname === "/login" || pathname === "/register";
 
   const organizerLinks = [
     { href: "/organizer/dashboard", label: "Tổng quan điều phối", icon: LayoutDashboard },
@@ -50,12 +51,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF9F6] text-[#1C2B24] overflow-x-clip">
+    <div
+      className={
+        isAuthRoute
+          ? "min-h-screen w-full bg-[#141822] text-white flex flex-col overflow-x-hidden"
+          : "min-h-screen flex flex-col bg-[#FAF9F6] text-[#1C2B24] overflow-x-clip"
+      }
+    >
       {/* Temporary Role Switcher Toolbar */}
-      <RoleSwitcherBar />
+      {!isAuthRoute && <RoleSwitcherBar />}
 
       {/* Top Main Navigation (Sticky Header 4.1) */}
-      <Header />
+      <Header isTransparent={isAuthRoute} />
 
       {/* Main Content Area */}
       {isOrganizerRoute || isAdminRoute ? (
@@ -231,10 +238,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
       )}
 
-
-
       {/* Main Footer (4.9) */}
-      <Footer />
+      {!isAuthRoute && <Footer />}
     </div>
   );
 }
