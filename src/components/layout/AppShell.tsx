@@ -66,7 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Area */}
       {isOrganizerRoute || isAdminRoute ? (
-        <div className="flex-1 flex max-w-[1240px] w-full mx-auto">
+        <div className="flex-1 flex max-w-[1440px] w-full mx-auto">
           {/* Console Sidebar */}
           <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-[#E5E7E0] bg-white/70 py-6 px-4">
             {isOrganizerRoute ? (

@@ -104,8 +104,8 @@ export default function MyDonationsPage() {
   // If user is not logged in, show demo login prompt
   if (!user) {
     return (
-      <div className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="max-w-md mx-auto bg-white rounded-3xl p-8 border border-[#E5E7E0] shadow-md text-center space-y-5">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="max-w-md mx-auto bg-white rounded-2xl p-8 border border-slate-200 shadow-md text-center space-y-5">
           <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
             <Gift className="w-8 h-8" />
           </div>
@@ -139,9 +139,9 @@ export default function MyDonationsPage() {
 
   return (
     <RoleGuard allowedRoles={["user"]}>
-      <div className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-fadeIn pb-16">
       {/* Top Profile & Welcome Header */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E5E7E0] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start gap-4">
           <div className="w-14 h-14 rounded-2xl bg-amber-100 text-[#F28C1B] flex items-center justify-center shrink-0 shadow-xs">
             <Gift className="w-7 h-7" />
@@ -185,8 +185,8 @@ export default function MyDonationsPage() {
       </div>
 
       {/* KPI Metric Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#E5E7E0] shadow-xs space-y-1">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-bold uppercase tracking-wider text-[#5F6F66]">
               Tổng Đóng Góp
@@ -199,7 +199,7 @@ export default function MyDonationsPage() {
           <p className="text-[11px] text-[#5F6F66]">Phần hiện vật đã cam kết</p>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#E5E7E0] shadow-xs space-y-1">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-bold uppercase tracking-wider text-[#5F6F66]">
               Chờ Nhập Kho
@@ -212,7 +212,7 @@ export default function MyDonationsPage() {
           <p className="text-[11px] text-[#5F6F66]">Tổ chức đang tiếp nhận</p>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#E5E7E0] shadow-xs space-y-1">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-bold uppercase tracking-wider text-[#5F6F66]">
               Đang Vận Chuyển
@@ -225,7 +225,7 @@ export default function MyDonationsPage() {
           <p className="text-[11px] text-[#5F6F66]">Đã đóng lô & trên đường</p>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#E5E7E0] shadow-xs space-y-1">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-bold uppercase tracking-wider text-[#5F6F66]">
               Đã Trao Tận Tay
