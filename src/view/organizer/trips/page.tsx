@@ -287,7 +287,7 @@ export default function OrganizerTripsPage() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="w-full space-y-6 animate-fadeIn pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -495,6 +495,32 @@ export default function OrganizerTripsPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Completed Trip Batch Reconciliation Banner */}
+              {tItem.status === "COMPLETED" && (
+                <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-emerald-900">
+                        Chuyến xe đã hoàn thành toàn bộ lộ trình trao quà!
+                      </p>
+                      <p className="text-[11px] text-emerald-700">
+                        Hãy đối soát số lượng phân phối thực tế của các Lô hàng để tự động cân bằng số lượng trong kho và chốt báo cáo minh bạch.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/organizer/batches"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition shadow-xs whitespace-nowrap"
+                  >
+                    <span>Đối soát Lô hàng</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              )}
             </div>
           ))}
         </div>

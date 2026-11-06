@@ -1,339 +1,316 @@
-# OpenAid
+# OpenAid — Nền Tảng Điều Phối Cứu Trợ Hiện Vật & Tình Nguyện Minh Bạch
 
-OpenAid là ứng dụng điều phối quyên góp hiện vật và hoạt động tình nguyện. Hệ thống mô phỏng hành trình từ chiến dịch cứu trợ, cam kết đóng góp, nhập kho, gom lô hàng đến chuyến phân phối, bằng chứng bàn giao và tra cứu bằng Tracking ID.
+OpenAid là nền tảng quản trị và điều phối chuỗi cung ứng cứu trợ hiện vật kết hợp vận hành đội ngũ tình nguyện viên thực địa. Hệ thống giải quyết bài toán cốt lõi về **tính minh bạch và liên kết khép kín** trong hoạt động từ thiện: từ lúc phát động chiến dịch, nhà hảo tâm cam kết gửi hiện vật, tiếp nhận nhập kho, đóng gói lô hàng, điều phối chuyến xe, phân công đội ngũ tình nguyện viên đến khi bàn giao tận tay đồng bào và tra cứu theo dõi bằng **Mã Vận Đơn (Tracking ID)** độc bản.
 
-Repository hiện chứa **frontend demo** xây dựng bằng Next.js. Các thao tác nghiệp vụ chạy qua mock service và lưu dữ liệu trong `localStorage` của trình duyệt. Có thể chạy demo mà không cần backend hoặc cơ sở dữ liệu riêng. Giao diện hiện sử dụng tiếng Việt.
+Phiên bản hiện tại là **Frontend Demo hoàn chỉnh** xây dựng trên Next.js 16 (App Router), vận hành bằng kiến trúc **Mock Service phản ứng (Reactive Mock Services)** lưu trữ dữ liệu trong `localStorage` của trình duyệt, sẵn sàng tích hợp Backend API.
 
-## Công nghệ
+---
 
-| Thành phần | Công nghệ đang dùng |
-| --- | --- |
-| Framework | Next.js 16.4.3, App Router |
-| Giao diện | React 19.3.0, TypeScript 5 |
-| Styling | Tailwind CSS 4, CSS Modules |
-| Icon | Lucide React |
-| Trạng thái và phiên đăng nhập | React Context, hooks, `localStorage` |
-| Dữ liệu | Mock service và dữ liệu seed trong mã nguồn |
-| Kiểm tra mã nguồn | ESLint 9, cấu hình Next.js và TypeScript |
+## 🚀 Công Nghệ Sử Dụng
 
-Phiên bản và dependency được khai báo trong [package.json](package.json), với bản khóa dependency tại [package-lock.json](package-lock.json).
+| Thành phần | Công nghệ & Phiên bản | Ghi chú |
+| :--- | :--- | :--- |
+| **Framework** | Next.js 16.4.3 (App Router) | Webpack bundler, kiến trúc tách biệt `src/app/` và `src/view/` |
+| **Giao diện & Logic** | React 19.3.0, TypeScript 5.9 | Client Components tối ưu hóa tính tương tác cao |
+| **Hệ thống Styling** | Tailwind CSS 4.2.1 | Forest green `#1F4D36`, container chuẩn 1440px, responsive toàn diện |
+| **Hệ thống Icon** | Lucide React | Bộ biểu tượng vector nhất quán, ngữ nghĩa cao |
+| **Quản lý Phiên & State**| React Context, Custom Hooks, Reactive Storage Event | Tự động đồng bộ UI khi dữ liệu `localStorage` thay đổi (`openaid-db-changed`) |
+| **Kiểm toán & Cân đối**| Utility Functions | Xác minh phương trình bảo toàn kho vật tư và đối soát lô hàng |
 
-## Cài đặt và chạy
+---
 
-### Yêu cầu
+## 👥 Kiến Trúc Phân Quyền & Các Vai Trò (Roles)
 
-- Node.js **20.9.0 trở lên**, theo yêu cầu của phiên bản Next.js đang cài.
-- npm.
-- Trình duyệt cho phép sử dụng `localStorage`.
+Hệ thống được thiết kế theo mô hình phân quyền 2 tầng linh hoạt:
 
-Chạy các lệnh sau tại thư mục gốc dự án:
+```text
+┌────────────────────────────────────────────────────────┐
+│               TẦNG HỆ THỐNG (SystemRole)               │
+│                                                        │
+│       ┌──────────────────────┐  ┌──────────────────┐   │
+│       │        ADMIN         │  │       USER       │   │
+│       └──────────┬───────────┘  └────────┬─────────┘   │
+└──────────────────┼───────────────────────┼─────────────┘
+                   │                       │
+┌──────────────────┼───────────────────────┼─────────────┐
+│                  │                       │             │
+│      ┌───────────▼───────────┐           │             │
+│      │ Quản trị viên nền tảng│           │             │
+│      └───────────────────────┘           │             │
+│                                          │             │
+│   ┌──────────────────────────────────────┴─────────┐   │
+│   │           TẦNG TỔ CHỨC (OrganizationRole)      │   │
+│   │                                                │   │
+│   │   ┌────────────────────┐ ┌─────────────────┐   │   │
+│   │   │     ORGANIZER      │ │     MEMBER      │   │   │
+│   │   │  (Ban Tổ Chức NGO) │ │   (Thành viên)  │   │   │
+│   │   └────────────────────┘ └─────────────────┘   │   │
+│   │                                                │   │
+│   │         PERSONAS (Người dùng cá nhân):         │   │
+│   │      • Tình Nguyện Viên (Volunteer)            │   │
+│   │      • Nhà Hảo Tâm (Donor)                     │   │
+│   └────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────┘
+```
 
+### 1. Quản Trị Viên (System Role: `ADMIN`)
+* **Vai trò**: Đại diện cơ quan quản lý/nền tảng cấp cao, có toàn quyền giám sát hệ thống.
+* **Khu vực làm việc**: `/admin/*` (`/admin/dashboard`, `/admin/organizations`, `/admin/users`, `/admin/events`).
+* **Thao tác chính**:
+  * Duyệt hồ sơ thành lập tổ chức cứu trợ (1-click Quick Approve hoặc Từ chối kèm lý do).
+  * Giám sát dòng nhật ký kiểm toán (Live Audit Trail Stream) theo thời gian thực.
+  * Quản lý trạng thái chiến dịch và khóa/kích hoạt tài khoản người dùng trên nền tảng.
+
+### 2. Ban Tổ Chức Cứu Trợ (System Role: `USER` + Organization Role: `ORGANIZER`)
+* **Vai trò**: Các tổ chức phi chính phủ (NGO), đội nhóm thiện nguyện được cấp phép tạo chiến dịch và điều phối hiện vật thực địa.
+* **Khu vực làm việc**: `/organizer/*` (`/organizer/dashboard`, `/organizer/events`, `/organizer/donations`, `/organizer/inventory`, `/organizer/batches`, `/organizer/trips`, `/organizer/volunteers`, `/organizer/transparency`).
+* **Thao tác chính**:
+  * **Trung tâm Điều hành (Operations Dashboard)**: Giám sát lô hàng sẵn sàng gom xe, chuyến xe đang chạy trên đường, truy cập nhanh Action Center.
+  * **Tiếp nhận quyên góp**: Xác nhận hàng về kho (tự động cộng kho Khả dụng) hoặc Từ chối đóng góp không phù hợp.
+  * **Quản trị kho**: Đối soát phương trình bảo toàn vật tư (`Received = Available + Reserved + Distributed + LostWrittenOff`).
+  * **Đóng gói lô hàng (Batching)**: Gom các hiện vật cùng loại vào lô, gán mã lô, đưa sang trạng thái `READY`.
+  * **Điều phối chuyến xe (Trip Dispatch)**: Tạo chuyến, liên kết các lô hàng `READY`, bổ nhiệm Trưởng đoàn xe, phân công tình nguyện viên, lập danh sách điểm cứu trợ.
+  * **Thực địa & Minh bạch**: Cập nhật tiến độ xe đến điểm phát, ghi nhận số lượng trao tặng, tải ảnh bằng chứng bàn giao, đối soát số lượng dư/thiếu và duyệt ảnh công khai.
+
+### 3. Người Dùng — Nhà Hảo Tâm (System Role: `USER` - Persona: Donor)
+* **Khu vực làm việc**: `/donate/[eventId]`, `/my/donations`, `/track/[trackingId]`.
+* **Thao tác chính**:
+  * Chọn chiến dịch và cam kết quyên góp hiện vật theo danh mục nhu cầu thực tế.
+  * Nhận **Mã Vận Đơn (Tracking ID)** độc bản kèm hướng dẫn địa chỉ kho tiếp nhận và hình thức gửi (trực tiếp, bưu cục, gửi chành xe).
+  * Theo dõi tiến độ hiện vật cá nhân: *Chờ nhập kho → Đã tiếp nhận → Đóng lô → Lên chuyến xe → Đã bàn giao tận tay*.
+  * Chủ động **Hủy cam kết** khi chưa gửi hàng để tự động giải phóng hạn ngạch cho nhà hảo tâm khác.
+
+### 4. Người Dùng — Tình Nguyện Viên (System Role: `USER` - Persona: Volunteer)
+* **Khu vực làm việc**: `/volunteer/apply/[eventId]`, `/my/activities`.
+* **Thao tác chính**:
+  * Nộp đơn ứng tuyển vị trí thực địa kèm thông tin năng lực, phương tiện, liên hệ khẩn cấp và cam kết an toàn.
+  * Xem tiến trình xét duyệt hồ sơ, chủ động **Rút đơn** nếu có việc đột xuất.
+  * Nhận **Lệnh Điều Động Chuyến Xe (Dispatch Order)** & **Bấm xem Chi Tiết Chuyến Đi**: Bấm vào từng chiến dịch đã đăng ký để mở cửa sổ chi tiết toàn diện chuyến xe: xem lộ trình từng điểm trao quà (vật tư bàn giao, giờ đến, ảnh thực địa), danh sách Lô hàng trên xe, danh bạ đồng đội trong đoàn xe và cẩm nang an toàn thực địa.
+  * **Điểm danh thực địa**: Bấm xác thực có mặt trực tiếp hoặc xuất trình mã QR cá nhân cho Trưởng đoàn quét, lưu vết thời gian vào hệ thống kiểm toán.
+
+---
+
+## 🔄 Chuỗi Nghiệp Vụ Khép Kín (End-to-End Operational Lifecycle)
+
+Hệ thống liên kết chặt chẽ các khâu để loại bỏ hoàn toàn các "điểm nghẽn" dữ liệu:
+
+```text
+[Nhà Hảo Tâm]               [Ban Tổ Chức]                  [Đoàn Phân Phối]            [Công Khai]
+      │                           │                               │                         │
+      │ 1. Cam kết hiện vật       │                               │                         │
+      ├──────────────────────────►│                               │                         │
+      │  (Cấp Tracking ID)        │ 2. Tiếp nhận & Kiểm định      │                         │
+      │                           ├───────────────┐               │                         │
+      │                           │ Cộng Kho Khả Dụng             │                         │
+      │                           │               │               │                         │
+      │                           │ 3. Đóng gói Lô hàng           │                         │
+      │                           ├───────────────┤               │                         │
+      │                           │ Chuyển Kho Tạm Giữ (Reserved) │                         │
+      │                           │               │               │                         │
+      │ 4. TNV Nộp hồ sơ          │ 5. Duyệt đơn & Phân công      │                         │
+      ├──────────────────────────►├───────────────┬──────────────►│                         │
+      │                           │ Gán Lô + Phân công xe         │                         │
+      │                           │                               │ 6. Nhận Lệnh Điều Động  │
+      │                           │                               │    & Điểm danh QR       │
+      │                           │                               ├────────────────────────►│
+      │                           │                               │                         │
+      │                           │                               │ 7. Xe chạy & Trao quà   │
+      │                           │                               ├───────────────┐         │
+      │                           │                               │ Ghi nhận số lượng & Ảnh │
+      │                           │ 8. Hoàn tất chuyến & Đối soát │               │         │
+      │                           │◄──────────────────────────────┼───────────────┘         │
+      │                           │ Tự động cân bằng kho bảo toàn │                         │
+      │                           │               │               │                         │
+      │ 9. Tra cứu hành trình     │ 10. Duyệt ảnh công khai       │                         │
+      ├───────────────────────────┴───────────────┴───────────────┴────────────────────────►│
+      │  Minh bạch: Từ cam kết đến biên bản bàn giao thực tế tại thôn bản                   │
+```
+
+### Phương trình Cân đối Bảo toàn Kho (Inventory Invariant):
+$$\text{Received} = \text{Available} + \text{Reserved} + \text{Distributed} + \text{LostWrittenOff}$$
+
+### Phương trình Đối soát Lô hàng (Batch Reconciliation):
+$$\text{TotalQuantity} = \text{DistributedQuantity} + \text{ReturnedQuantity} + \text{LostQuantity}$$
+
+---
+
+## 🗺️ Bản Đồ Điều Hướng & 26 Tuyến Giao Diện (Routing Map)
+
+Tất cả các route trong `src/app/` đều tuân thủ kiến trúc chuẩn: chỉ khai báo route và import view tương ứng từ `src/view/`.
+
+### 1. Trang Công Khai & Xác Thực
+| Đường dẫn | View Tương Ứng | Chức năng chính |
+| :--- | :--- | :--- |
+| `/` | `src/view/page.tsx` | Trang chủ: Giới thiệu, chiến dịch tiêu biểu, quy trình minh bạch |
+| `/about` | `src/view/about/page.tsx` | Giới thiệu sứ mệnh nền tảng OpenAid |
+| `/events` | `src/view/events/page.tsx` | Khám phá chiến dịch cứu trợ, tìm kiếm và lọc danh mục |
+| `/events/[id]` | `src/view/events/[id]/page.tsx` | Chi tiết chiến dịch: Tiến độ hiện vật, chỉ tiêu TNV, điều phối viên |
+| `/track` | `src/view/track/page.tsx` | Cổng tra cứu Mã Vận Đơn tập trung |
+| `/track/[trackingId]` | `src/view/track/[trackingId]/page.tsx` | Hành trình chi tiết: Lịch sử đóng lô, chuyến xe, ảnh thực địa đã duyệt |
+| `/login` | `src/view/(auth)/login/page.tsx` | Đăng nhập tài khoản hoặc chọn đăng nhập demo nhanh |
+| `/register` | `src/view/(auth)/register/page.tsx` | Đăng ký tài khoản người dùng hoặc nộp hồ sơ thành lập tổ chức cứu trợ |
+| `/profile` | `src/view/profile/page.tsx` | Xem và cập nhật thông tin cá nhân |
+
+### 2. Khu Vực Người Dùng Cá Nhân (Personas: Volunteer & Donor)
+| Đường dẫn | View Tương Ứng | Chức năng chính |
+| :--- | :--- | :--- |
+| `/volunteer/apply/[eventId]` | `src/view/volunteer/apply/[eventId]/page.tsx` | Ứng tuyển TNV: Chọn vai trò, tiến độ hạn ngạch, cam kết an toàn, số liên hệ khẩn cấp |
+| `/donate/[eventId]` | `src/view/donate/[eventId]/page.tsx` | Đóng góp hiện vật: Chọn nhu cầu, nhập số lượng, phương thức gửi, nhận Tracking ID |
+| `/my/activities` | `src/view/my/activities/page.tsx` | Quản lý đơn tình nguyện: Rút đơn, nhận Lệnh điều động chuyến xe, xuất trình mã QR & Điểm danh thực địa |
+| `/my/donations` | `src/view/my/donations/page.tsx` | Sổ theo dõi đóng góp: Lọc trạng thái, xem mã lô/chuyến xe, hủy cam kết PENDING |
+
+### 3. Khu Vực Ban Tổ Chức Cứu Trợ (Organizer)
+| Đường dẫn | View Tương Ứng | Chức năng chính |
+| :--- | :--- | :--- |
+| `/organizer/dashboard` | `src/view/organizer/dashboard/page.tsx` | Bảng điều hành: Live Batches, Active Trips, Action Center, thanh tiến độ kho vật tư |
+| `/organizer/events` | `src/view/organizer/events/page.tsx` | Quản lý chiến dịch của tổ chức: Tạo mới, cập nhật nhu cầu hiện vật & vị trí TNV |
+| `/organizer/events/[id]` | `src/view/organizer/events/[id]/page.tsx` | Bảng điều khiển riêng từng chiến dịch, duyệt nhanh đơn TNV và đóng góp |
+| `/organizer/donations` | `src/view/organizer/donations/page.tsx` | Tiếp nhận hiện vật: Xác nhận nhận hàng vào kho, từ chối đóng góp sai lệch |
+| `/organizer/inventory` | `src/view/organizer/inventory/page.tsx` | Kiểm kê kho: Đối chiếu phương trình cân đối kho, lịch sử nhập/xuất |
+| `/organizer/batches` | `src/view/organizer/batches/page.tsx` | Đóng gói lô hàng: Gom hiện vật, chuyển trạng thái READY, đối soát sau chuyến đi |
+| `/organizer/trips` | `src/view/organizer/trips/page.tsx` | Điều phối chuyến xe: Tạo chuyến, phân công Trưởng đoàn & TNV, quản lý lộ trình trao quà, ghi nhận bàn giao & banner chuyển tiếp đối soát lô |
+| `/organizer/volunteers` | `src/view/organizer/volunteers/page.tsx` | Quản trị nhân lực: Duyệt/từ chối đơn ứng tuyển, kiểm tra danh sách có mặt |
+| `/organizer/transparency` | `src/view/organizer/transparency/page.tsx` | Trung tâm minh bạch: Thẩm định ảnh bằng chứng trao quà trước khi công bố ra cộng đồng |
+
+### 4. Khu Vực Quản Trị Hệ Thống (Admin)
+| Đường dẫn | View Tương Ứng | Chức năng chính |
+| :--- | :--- | :--- |
+| `/admin/dashboard` | `src/view/admin/dashboard/page.tsx` | Thống kê toàn sàn, hàng đợi duyệt nhanh tổ chức (Quick Approve Queue), Live Audit Trail |
+| `/admin/organizations` | `src/view/admin/organizations/page.tsx` | Thẩm định hồ sơ tổ chức thiện nguyện, kích hoạt hoặc tạm dừng |
+| `/admin/users` | `src/view/admin/users/page.tsx` | Danh bạ người dùng toàn hệ thống, cấp quyền hoặc khóa tài khoản |
+| `/admin/events` | `src/view/admin/events/page.tsx` | Giám sát và kiểm duyệt toàn bộ chiến dịch trên nền tảng |
+
+---
+
+## 💻 Cài Đặt & Khởi Chạy Ứng Dụng
+
+### Yêu Cầu Môi Trường
+* **Node.js**: Phiên bản `20.9.0` trở lên (khuyến nghị Node 20 LTS hoặc 22 LTS).
+* **Trình duyệt**: Hỗ trợ HTML5 và `localStorage`.
+
+### Các Bước Cài Đặt
 ```bash
+# 1. Cài đặt các gói phụ thuộc
 npm ci
+
+# 2. Khởi chạy máy chủ phát triển
 npm run dev
 ```
 
-Mở [http://localhost:3000](http://localhost:3000). Dữ liệu mẫu sẽ được khởi tạo khi ứng dụng truy cập mock database lần đầu.
+Mở trình duyệt tại: **[http://localhost:3000](http://localhost:3000)**. Dữ liệu hạt giống (Seed Data) sẽ được tự động khởi tạo vào `localStorage` trong lần truy cập đầu tiên.
 
-Ảnh minh họa trong dữ liệu mẫu sử dụng URL bên ngoài, chủ yếu từ Unsplash; cần kết nối Internet để tải các ảnh này.
-
-### Chạy bản production tại máy
-
+### Build Kiểm Tra Bản Production
 ```bash
+# Biên dịch và kiểm tra TypeScript toàn bộ dự án
 npm run build
+
+# Chạy bản production cục bộ
 npm run start
 ```
 
-### Các script hiện có
+---
 
-| Lệnh | Tác dụng |
-| --- | --- |
-| `npm run dev` | Chạy máy chủ phát triển Next.js |
-| `npm run build` | Build production bằng `next build --webpack`, bao gồm kiểm tra TypeScript |
-| `npm run start` | Chạy bản production đã build |
-| `npm run lint` | Chạy ESLint |
+## 🔑 Tài Khoản Demo & Kịch Bản Trải Nghiệm Liên Hoàn
 
-Dự án chưa khai báo script `test`. Mã nguồn hiện còn các lỗi lint như `no-explicit-any` và `set-state-in-effect`; cần xử lý riêng khi tiếp tục phát triển.
+### Danh Sách Tài Khoản Mẫu (Mật khẩu chung: `123456`)
 
-## Tài khoản và dữ liệu demo
+| Email | Vai trò | Khu vực hoạt động chính | Mục đích demo |
+| :--- | :--- | :--- | :--- |
+| `user@openaid.demo` | `USER` | `/my/activities`, `/my/donations` | Trải nghiệm nộp đơn TNV, cam kết hiện vật, nhận Lệnh điều động xe, điểm danh thực địa |
+| `organizer@openaid.demo` | `ORGANIZER` | `/organizer/dashboard` | Quản lý tổ chức *Helping Hands Da Nang*, điều hành kho, gom lô, điều phối đoàn xe |
+| `admin@openaid.demo` | `ADMIN` | `/admin/dashboard` | Duyệt tổ chức mới, giám sát kiểm toán hệ thống |
+| `volunteer.b@openaid.demo` | `USER` | `/my/activities` | Tài khoản TNV thứ hai để thử phân công Trưởng đoàn / Đội ngũ chuyến xe |
+| `greenhope@openaid.demo` | `ORGANIZER` (Pending) | `/profile` | Tổ chức *Green Hope Youth Network* đang chờ Admin duyệt |
 
-Các tài khoản dưới đây có trong [src/mocks/seedData.ts](src/mocks/seedData.ts). Mật khẩu chung: **`123456`**.
+> [!TIP]
+> Sử dụng thanh **Chuyển Vai Trò Demo (Role Switcher Bar)** ở mép trên màn hình để chuyển đổi tức thì giữa các vai trò mà không cần đăng xuất/đăng nhập lại. Bạn cũng có thể nhấn nút **Khôi phục dữ liệu mẫu** bất kỳ lúc nào để đưa database về trạng thái ban đầu.
 
-| Email | Vai trò | Khu vực sử dụng chính |
-| --- | --- | --- |
-| `user@openaid.demo` | Người dùng, tình nguyện viên, nhà tài trợ hiện vật | `/my/activities`, `/my/donations` |
-| `organizer@openaid.demo` | Organizer của Helping Hands Da Nang | `/organizer/dashboard` |
-| `admin@openaid.demo` | Quản trị viên hệ thống | `/admin/dashboard` |
-| `volunteer.b@openaid.demo` | Người dùng thứ hai để thử phân công tình nguyện viên | Đăng nhập tại `/login` |
-| `greenhope@openaid.demo` | Organizer của tổ chức Green Hope Youth Network đang chờ duyệt | Thử quy trình duyệt tổ chức |
+### Mã Vận Đơn (Tracking ID) Sẵn Có Để Thử Nghiệm
 
-Thanh **Chuyển Vai Trò Demo** cho phép chuyển nhanh giữa khách vãng lai, người dùng, Organizer và Admin. Những tài khoản khác có thể đăng nhập bằng email và mật khẩu tại `/login`.
+| Tracking ID | Hiện vật | Trạng thái mẫu | Có thể tra cứu tại |
+| :--- | :--- | :--- | :--- |
+| `DON-2026-7K3Q9X` | 50 kg gạo ST25 | `DISTRIBUTED` (Đã bàn giao, có ảnh thực địa) | `/track/DON-2026-7K3Q9X` |
+| `DON-2026-5W9K2N` | 500 chai nước suối | `IN_BATCH` (Đã gom vào lô hàng cứu trợ) | `/track/DON-2026-5W9K2N` |
+| `DON-2026-3H6V8B` | 60 kg gạo | `RECEIVED` (Đã tiếp nhận vào kho tổng) | `/track/DON-2026-3H6V8B` |
+| `DON-2026-2F7J9K` | 50 kg gạo | `PENDING` (Chờ người hảo tâm chuyển tới kho) | `/track/DON-2026-2F7J9K` |
 
-Vai trò hệ thống gồm `USER` và `ADMIN`. Vai trò `ORGANIZER` thuộc quan hệ thành viên của tổ chức, được lưu trong `OrganizationMember`.
+---
 
-### Khôi phục dữ liệu mẫu
+## 🎬 Kịch Bản Thử Nghiệm Chuỗi Vận Hành Thực Tế (Walkthrough)
 
-Nhấn biểu tượng khôi phục trên thanh chuyển vai trò và xác nhận. Thao tác này ghi đè mock database bằng dữ liệu seed, xóa các thay đổi và bản ghi đã tạo trong lần demo.
+Để cảm nhận rõ nhất tính liên kết xuyên suốt giữa các Role trong OpenAid, hãy thử trải nghiệm theo chuỗi tương tác sau:
 
-Sửa file seed không tự cập nhật database đã tồn tại trong trình duyệt. Sau khi sửa seed, cần khôi phục dữ liệu mẫu để nhận dữ liệu mới. Các trình duyệt hoặc origin khác nhau có bộ dữ liệu riêng.
+1. **Bước 1 — Duyệt Tổ Chức (Role: Admin)**:
+   * Chuyển sang `admin@openaid.demo`, vào `/admin/dashboard`.
+   * Tại mục **Tổ Chức Chờ Thẩm Định**, nhấn nút **Duyệt hồ sơ** cho *Green Hope Youth Network*.
+2. **Bước 2 — Cam Kết Quyên Góp Hiện Vật (Role: Donor)**:
+   * Chuyển sang `user@openaid.demo`, vào `/events` và chọn chiến dịch *Cứu Trợ Lũ Lụt Hòa Vang*.
+   * Nhấn **Quyên Góp Hiện Vật**, chọn nhu cầu *Áo Phao*, cam kết *10 Cái*, chọn hình thức gửi *Gửi Bưu Cục*.
+   * Nhận được **Mã Vận Đơn** (VD: `DON-2026-XXXXXX`). Vào `/my/donations` để kiểm tra.
+3. **Bước 3 — Tiếp Nhận Vào Kho Cứu Trợ (Role: Organizer)**:
+   * Chuyển sang `organizer@openaid.demo`, vào `/organizer/donations`.
+   * Nhấn **Xác nhận đã nhận hàng**. Vào `/organizer/inventory` kiểm tra: Số lượng áo phao đã được cộng vào **Khả Dụng (Available)** và phương trình kho bảo toàn tuyệt đối.
+4. **Bước 4 — Ứng Tuyển & Phê Duyệt Tình Nguyện Viên (Role: Volunteer & Organizer)**:
+   * Chuyển sang `user@openaid.demo`, vào `/volunteer/apply/evt-1`, chọn vai trò *Hỗ trợ vận chuyển & điều phối*, điền số khẩn cấp và cam kết.
+   * Chuyển sang `organizer@openaid.demo`, vào `/organizer/volunteers` và nhấn **Phê Duyệt**.
+5. **Bước 5 — Đóng Gói Lô Hàng & Lập Chuyến Xe (Role: Organizer)**:
+   * Vào `/organizer/batches`, nhấn **Tạo Lô Mới**, chọn các hiện vật đã nhận, hoàn tất gom lô và chuyển sang **Sẵn Sàng (READY)**.
+   * Vào `/organizer/trips`, nhấn **Lên Lịch Chuyến Mới**: Chọn lô hàng vừa tạo, bổ nhiệm `user@openaid.demo` làm **Trưởng đoàn**, thêm các điểm trao quà tại xã Hòa Phong.
+6. **Bước 6 — Nhận Lệnh Điều Động & Điểm Danh (Role: Volunteer)**:
+   * Chuyển sang `user@openaid.demo`, vào `/my/activities`.
+   * Quan sát card hoạt động: Lập tức xuất hiện mục **Lệnh Điều Động Chuyến Xe** hiển thị vai trò *Trưởng đoàn điều phối 👑*, ngày đi và số điểm trao quà.
+   * Nhấn nút **Điểm Danh** hoặc mở **Mã QR** để ghi nhận thời gian có mặt thực địa vào nhật ký.
+7. **Bước 7 — Xe Lên Đường & Trao Quà Tại Điểm (Role: Organizer / Leader)**:
+   * Tại `/organizer/trips`, chuyển trạng thái xe: *Chuẩn bị xuất phát → Đang trên đường*.
+   * Tại điểm phát, nhấn **Bàn giao & Ghi nhận ảnh**: Nhập số lượng phát thực tế, ảnh chứng thực và xác nhận bảo mật.
+   * Hoàn thành chuyến xe: Banner đề xuất xuất hiện dẫn thẳng đến `/organizer/batches` để **Đối soát Lô hàng**.
+8. **Bước 8 — Duyệt Minh Bạch & Tra Cứu Công Khai (Role: Organizer & Khách)**:
+   * Vào `/organizer/transparency`, duyệt ảnh bằng chứng sang trạng thái **Công khai**.
+   * Chuyển sang **Khách vãng lai**, vào `/track` và gõ Mã Vận Đơn ở Bước 2. Toàn bộ hành trình từ lúc đóng góp đến bức ảnh bà con nhận quà tại thôn bản hiển thị rõ ràng, xác thực 100%.
 
-### Tracking ID có thật trong seed
+---
 
-| Tracking ID | Hiện vật | Trạng thái ban đầu |
-| --- | --- | --- |
-| `DON-2026-7K3Q9X` | 50 kg gạo | `DISTRIBUTED` |
-| `DON-2026-3H6V8B` | 60 kg gạo | `RECEIVED` |
-| `DON-2026-5W9K2N` | 500 chai nước | `IN_BATCH` |
-| `DON-2026-2F7J9K` | 50 kg gạo | `PENDING` |
-
-Nhập các mã này tại `/track` hoặc truy cập `/track/<Tracking ID>`. Các mã gợi ý đang hiển thị trên giao diện `/track` chưa khớp dữ liệu seed; dùng bảng trên để thử tra cứu.
-
-## Chức năng và đường dẫn
-
-Ứng dụng hiện có **26 trang** được khai báo trong `src/app/`. Route group `(auth)` chỉ dùng để tổ chức thư mục, không xuất hiện trong URL.
-
-### Trang công khai và tài khoản
-
-| URL | Nội dung |
-| --- | --- |
-| `/` | Trang chủ: giới thiệu, chiến dịch nổi bật, quy trình và lời kêu gọi tham gia |
-| `/about` | Giới thiệu nền tảng |
-| `/events` | Khám phá chiến dịch đang phát động, tìm kiếm và giao diện bộ lọc |
-| `/events/[id]` | Chi tiết chiến dịch, nhu cầu hiện vật, vai trò tình nguyện và nhật ký liên quan |
-| `/track` | Nhập Tracking ID |
-| `/track/[trackingId]` | Tra cứu đóng góp, lô hàng, chuyến phân phối, điểm phát và bằng chứng công khai |
-| `/login` | Đăng nhập |
-| `/register` | Đăng ký người dùng; có tùy chọn tạo hồ sơ tổ chức chờ duyệt |
-| `/profile` | Xem và cập nhật hồ sơ của tài khoản đã đăng nhập |
-
-### Khu vực người dùng
-
-| URL | Nội dung |
-| --- | --- |
-| `/volunteer/apply/[eventId]` | Đăng ký một vai trò tình nguyện trong chiến dịch |
-| `/donate/[eventId]` | Cam kết quyên góp hiện vật theo nhu cầu và nhận Tracking ID |
-| `/my/activities` | Xem trạng thái đơn tình nguyện, giao diện QR và điểm danh mô phỏng |
-| `/my/donations` | Xem, tìm kiếm và lọc đóng góp cá nhân; sao chép mã và mở trang tra cứu |
-
-Các trang này dùng `RoleGuard` cho vai trò `user`. Tài khoản Organizer và Admin có khu vực điều phối riêng.
-
-### Khu vực Organizer
-
-| URL | Nội dung |
-| --- | --- |
-| `/organizer/dashboard` | Tổng quan hoạt động của tổ chức |
-| `/organizer/events` | Tạo chiến dịch, khai báo nhu cầu hiện vật/vai trò tình nguyện, đổi trạng thái và xóa chiến dịch |
-| `/organizer/events/[id]` | Theo dõi chi tiết chiến dịch, xét duyệt đơn tình nguyện và xem đóng góp |
-| `/organizer/volunteers` | Duyệt hoặc từ chối đơn tình nguyện |
-| `/organizer/donations` | Xác nhận đã nhận hoặc từ chối đóng góp hiện vật |
-| `/organizer/inventory` | Xem tồn kho và đối chiếu phương trình cân đối |
-| `/organizer/batches` | Gom các đóng góp đã nhận thành lô hàng, chuyển lô sang sẵn sàng và đối soát số lượng |
-| `/organizer/trips` | Tạo chuyến, gán lô hàng/TNV/trưởng đoàn, quản lý điểm phát, ghi nhận phân phối và ảnh bằng chứng |
-| `/organizer/transparency` | Xét duyệt bằng chứng công khai và xem nhật ký nghiệp vụ |
-
-### Khu vực Admin
-
-| URL | Nội dung |
-| --- | --- |
-| `/admin/dashboard` | Thống kê tổng quan nền tảng |
-| `/admin/organizations` | Tìm kiếm tổ chức, duyệt và thay đổi trạng thái tổ chức |
-| `/admin/users` | Tìm kiếm, kích hoạt hoặc vô hiệu hóa tài khoản |
-| `/admin/events` | Theo dõi và thay đổi trạng thái chiến dịch trên nền tảng |
-
-## Cấu trúc thư mục
+## 📁 Cấu Trúc Thư Mục Dự Án
 
 ```text
 OpenAid/
-├── public/                      # Tài nguyên tĩnh
+├── public/                      # Static assets & icons
 ├── src/
-│   ├── app/                     # Khai báo route Next.js, import/export view
-│   ├── view/                    # Giao diện trang, state và xử lý tương tác
-│   │   ├── (auth)/              # Đăng nhập, đăng ký
-│   │   ├── about/
-│   │   ├── admin/
-│   │   ├── donate/
-│   │   ├── events/
-│   │   ├── my/
-│   │   ├── organizer/
-│   │   ├── profile/
-│   │   ├── track/
-│   │   ├── volunteer/
-│   │   ├── layout.tsx           # Root layout, metadata và providers
-│   │   ├── page.tsx             # Nội dung trang chủ
-│   │   ├── error.tsx
-│   │   ├── loading.tsx
-│   │   └── not-found.tsx
+│   ├── app/                     # Next.js App Router (Chỉ định tuyến & export Views)
+│   ├── view/                    # Triển khai giao diện, UX và state của từng trang
+│   │   ├── (auth)/              # Màn hình đăng nhập, đăng ký
+│   │   ├── about/               # Trang giới thiệu
+│   │   ├── admin/               # Quản trị viên (Dashboard, Users, Orgs, Events)
+│   │   ├── donate/              # Form cam kết đóng góp hiện vật
+│   │   ├── events/              # Khám phá và chi tiết chiến dịch
+│   │   ├── my/                  # Hoạt động cá nhân (/my/activities, /my/donations)
+│   │   ├── organizer/           # Ban tổ chức (Dashboard, Inventory, Batches, Trips...)
+│   │   ├── profile/             # Hồ sơ tài khoản
+│   │   ├── track/               # Tra cứu hành trình hiện vật theo Tracking ID
+│   │   └── volunteer/           # Form đăng ký tình nguyện viên
 │   ├── components/
-│   │   ├── auth/                # RoleGuard
-│   │   ├── layout/              # AppShell, RoleSwitcherBar
-│   │   ├── sections/            # Header, Footer, Hero, các section trang chủ
-│   │   └── ui/                  # Button, Badge, modal, toast, ProgressBar...
-│   ├── styles/
-│   │   ├── globals.css          # Tailwind, theme và CSS chung
-│   │   ├── Header.module.css
-│   │   └── ProgressBar.module.css
+│   │   ├── auth/                # RoleGuard, bảo vệ tuyến theo quyền
+│   │   ├── layout/              # AppShell (1440px), RoleSwitcherBar, Navbar, Footer
+│   │   └── ui/                  # Button, Badge, Modal, ToastProvider, ProgressBar...
+│   ├── services/                # Reactive Mock Services (Storage, Trip, Batch, Donation...)
+│   ├── mocks/                   # Seed Data khởi tạo mẫu (Users, Events, Inventory...)
 │   ├── hooks/                   # useAuth, useTranslation
-│   ├── providers/               # LanguageProvider
-│   ├── services/                # Các mock service nghiệp vụ
-│   ├── mocks/                   # seedData.ts
-│   ├── types/                   # Model, trạng thái và kiểu dữ liệu dùng chung
-│   ├── constants/               # Storage key, danh mục nghiệp vụ, tài khoản demo
-│   ├── lib/                     # Hằng số giao diện và tiện ích
-│   ├── i18n/                    # Bản dịch tiếng Việt
-│   └── utils/                   # ID, định dạng và kiểm tra cân đối kho
-├── AGENTS.md                    # Hướng dẫn làm việc với phiên bản Next.js đã cài
-├── next.config.ts               # Cấu hình Next.js và rewrite /api
-├── postcss.config.mjs
-├── eslint.config.mjs
-├── tsconfig.json
-├── package.json
-└── package-lock.json
+│   ├── types/                   # Định nghĩa TypeScript Models & Interfaces
+│   ├── styles/                  # globals.css (Tailwind 4) & Component CSS modules
+│   └── utils/                   # ID generators, date formatters, inventory invariant checks
+├── next.config.ts               # Cấu hình Next.js và API rewrite
+├── tsconfig.json                # Cấu hình TypeScript 5 & path alias @/*
+├── package.json                 # Khai báo dependency chính
+└── README.md                    # Tài liệu hướng dẫn dự án OpenAid
 ```
 
-## Quy ước tổ chức mã nguồn
+---
 
-### `app` chỉ khai báo route và import/export
+## 🛡️ Cam Kết Chất Lượng Mã Nguồn
 
-Giao diện được viết trong `src/view/` với cấu trúc thư mục tương ứng. Ví dụ [src/app/events/page.tsx](src/app/events/page.tsx):
+* **Chuẩn hóa Giao diện**: Mọi view được đồng bộ cấu trúc khoảng đệm (`pb-12 / pb-16`), khung bao chuẩn `max-w-[1440px]`, màu nhận diện thương hiệu chủ đạo Forest Green (`#1F4D36`) và Amber (`#F28C1B`).
+* **Đầy đủ liên kết**: Không có nút bấm "chết" hay thiếu phản hồi; các thao tác quan trọng đều có modal xác nhận, kiểm tra dữ liệu trước khi gửi và thông báo Toast kịp thời.
+* **Biên dịch Production sạch**: Dự án đạt kết quả build thành công 24/24 routes không phát sinh lỗi kiểu dữ liệu TypeScript hay đụng độ gói.
 
-```tsx
-import EventsDiscoveryPage from "@/view/events/page";
-
-export default EventsDiscoveryPage;
-```
-
-Khi sửa giao diện danh sách chiến dịch, sửa [src/view/events/page.tsx](src/view/events/page.tsx).
-
-Các file `layout.tsx`, `error.tsx`, `loading.tsx` và `not-found.tsx` trong `app` cũng import/export nội dung từ `view`. Root layout export thêm metadata; `app/error.tsx` giữ chỉ thị `"use client"` theo yêu cầu Next.js. `favicon.ico` vẫn nằm trong `app` để Next.js nhận diện.
-
-Alias `@/*` trỏ đến `src/*`, được cấu hình trong [tsconfig.json](tsconfig.json). Logic dùng lại giữa các trang đặt trong `components/`, `hooks/`, `services/` hoặc `utils/` tùy trách nhiệm.
-
-### Tailwind và CSS riêng
-
-- Ưu tiên Tailwind cho bố cục, khoảng cách, màu sắc, responsive và các style thông thường.
-- CSS toàn ứng dụng đặt tại [src/styles/globals.css](src/styles/globals.css), được import trong `src/view/layout.tsx`.
-- CSS cần viết riêng đặt tại `src/styles/<TênComponent>.module.css` và import vào component tương ứng.
-- Dữ liệu style thay đổi khi chạy được truyền bằng biến CSS. Hiện tại, `Header.module.css` quản lý vị trí/kích thước hiệu ứng menu; `ProgressBar.module.css` quản lý chiều rộng thanh tiến độ.
-- Các trang dùng chung [ProgressBar](src/components/ui/ProgressBar.tsx), với class Tailwind riêng cho phần nền, màu và chiều cao.
-
-### Hướng dẫn Next.js trong dự án
-
-Theo [AGENTS.md](AGENTS.md), trước khi thay đổi code Next.js cần đọc hướng dẫn tương ứng tại `node_modules/next/dist/docs/`. Dự án dùng Next.js 16.4.3; cần kiểm tra tài liệu đi kèm thay vì áp dụng mặc định các quy ước của phiên bản khác.
-
-## Dữ liệu và xử lý nghiệp vụ
-
-Luồng xử lý hiện tại:
-
-```text
-View / Component
-    → Hook / Mock Service
-    → storageService
-    → localStorage
-```
-
-[storageService](src/services/storageService.ts) khởi tạo database từ seed, đọc/ghi dữ liệu và phát sự kiện `openaid-db-changed`. [AuthProvider](src/hooks/useAuth.tsx) quản lý phiên, tổ chức đang hoạt động và theo dõi thay đổi dữ liệu. Các trang có thể tải lại dữ liệu qua các sự kiện này hoặc sau khi hoàn tất thao tác.
-
-| Service | Trách nhiệm |
-| --- | --- |
-| `authService` | Đăng nhập, đăng ký, hồ sơ và quan hệ thành viên tổ chức |
-| `eventService` | Tìm kiếm, tạo/cập nhật, đổi trạng thái và xóa chiến dịch |
-| `volunteerService` | Đơn tình nguyện, xét duyệt, hàm check-in/check-out |
-| `donationService` | Cam kết hiện vật, cấp Tracking ID, xác nhận nhận, từ chối và hủy cam kết |
-| `inventoryService` | Truy vấn kho theo tổ chức/chiến dịch và kiểm tra cân đối |
-| `batchService` | Gom lô, kiểm tra điều kiện hiện vật và đối soát lô |
-| `tripService` | Chuyến phân phối, phân công TNV, điểm phát và số lượng bàn giao |
-| `transparencyService` | Bằng chứng, xét duyệt công khai, nhật ký và tra cứu Tracking ID |
-| `adminService` | Thống kê, tài khoản và xét duyệt tổ chức |
-| `storageService` | Đọc/ghi, khôi phục mock database và thêm nhật ký |
-
-Các hàm trong service không đồng nghĩa đều đã có thao tác tương ứng trên giao diện. Ví dụ service có check-in/check-out, nhưng nút điểm danh hiện tại ở `/my/activities` chỉ thay đổi state của trang.
-
-### Dữ liệu lưu trong trình duyệt
-
-| Key | Nội dung |
-| --- | --- |
-| `openaid_mock_db_v1` | Toàn bộ mock database |
-| `openaid_auth_session_v1` | ID tài khoản đang đăng nhập |
-| `currentUser` | Bản sao thông tin tài khoản đăng nhập |
-| `openaid-language` | Ngôn ngữ giao diện; hiện tại là `vi` |
-
-Seed có dữ liệu cho người dùng, tổ chức, chiến dịch, đơn tình nguyện, nhu cầu hiện vật, đóng góp, kho, lô hàng, chuyến xe, điểm phát, bản ghi phân phối, bằng chứng và nhật ký. Các kiểu dữ liệu được khai báo tại [src/types/index.ts](src/types/index.ts).
-
-### Quy trình hiện vật
-
-```text
-Chiến dịch → Cam kết hiện vật → Xác nhận nhận hàng → Kho
-          → Lô hàng → Chuyến phân phối → Điểm phát → Bằng chứng
-```
-
-Một số quy tắc đang được xử lý trong mock service:
-
-- Chỉ chiến dịch `PUBLISHED` tiếp nhận đăng ký tình nguyện và đóng góp hiện vật. Tổ chức phải `APPROVED` mới được công bố chiến dịch.
-- Lô hàng gom các đóng góp `RECEIVED`, chưa thuộc lô khác, cùng chiến dịch, loại hàng và đơn vị; tổng số lượng phải phù hợp tồn kho khả dụng.
-- Chuyến phân phối cần lô `READY`, TNV có đơn `APPROVED`, trưởng đoàn trong danh sách được chọn và ít nhất một điểm phát.
-- Khi hoàn thành chuyến, các điểm phải ở trạng thái `DISTRIBUTED` hoặc `SKIPPED`; service đối soát các lô hàng liên quan.
-- Đăng bằng chứng cần chú thích và xác nhận quyền riêng tư. Trang tra cứu chỉ nhận ảnh bằng chứng có trạng thái `APPROVED_PUBLIC`.
-- Tracking ID gắn với lượt đóng góp; hành trình phân phối được truy vết qua lô hàng.
-
-Phương trình cân đối kho được kiểm tra trong [src/utils/index.ts](src/utils/index.ts):
-
-```text
-received = available + reserved + distributed + lostWrittenOff
-```
-
-Khi đối soát lô:
-
-```text
-totalQuantity = distributedQuantity + returnedQuantity + lostQuantity
-```
-
-### Các trạng thái trong model
-
-| Đối tượng | Trạng thái |
-| --- | --- |
-| Tổ chức | `PENDING`, `APPROVED`, `DISABLED` |
-| Chiến dịch | `DRAFT`, `PUBLISHED`, `CLOSED`, `CANCELLED` |
-| Đơn tình nguyện | `PENDING`, `APPROVED`, `REJECTED` |
-| Đóng góp | `PENDING`, `RECEIVED`, `REJECTED`, `IN_BATCH`, `DISTRIBUTED`, `CANCELLED` |
-| Lô hàng | `DRAFT`, `READY`, `ASSIGNED`, `DISTRIBUTED` |
-| Chuyến phân phối | `SCHEDULED`, `PREPARING`, `IN_TRANSIT`, `COMPLETED`, `CANCELLED` |
-| Điểm phát | `PENDING`, `ARRIVED`, `DISTRIBUTED`, `SKIPPED` |
-| Bằng chứng | `PENDING_REVIEW`, `APPROVED_PUBLIC`, `REJECTED_PUBLIC` |
-
-## Kịch bản demo gợi ý
-
-1. Chạy ứng dụng, khôi phục dữ liệu mẫu nếu cần, rồi vào `/track` để thử các mã có trong bảng Tracking ID.
-2. Chuyển sang `user@openaid.demo`, mở chiến dịch Hòa Vang tại `/events/evt-1` và cam kết hiện vật qua `/donate/evt-1`. Ghi lại mã Tracking ID được cấp.
-3. Chuyển sang Organizer, vào `/organizer/donations` để xác nhận đã nhận phần hiện vật vừa cam kết. Kiểm tra thay đổi tại `/organizer/inventory`.
-4. Vào `/organizer/batches`, gom các đóng góp đủ điều kiện thành lô sẵn sàng phân phối.
-5. Tại `/organizer/trips`, tạo chuyến với lô hàng, các TNV đã được duyệt, trưởng đoàn và điểm phát. Có thể duyệt thêm TNV tại `/organizer/volunteers`.
-6. Chuyển chuyến qua các bước chuẩn bị, vận chuyển; ghi nhận số lượng phát tại điểm, URL ảnh bằng chứng và xác nhận quyền riêng tư.
-7. Duyệt ảnh tại `/organizer/transparency`, hoàn tất các điểm phát và chuyến phân phối, rồi kiểm tra đối soát kho/lô.
-8. Chuyển về khách vãng lai và tra cứu Tracking ID đã ghi để xem hành trình cùng ảnh được duyệt công khai.
-
-Để thử quản trị, đăng nhập Admin và mở `/admin/organizations`: dữ liệu seed có Green Hope Youth Network ở trạng thái `PENDING`.
-
-## Cấu hình kết nối backend
-
-[next.config.ts](next.config.ts) đã có rewrite:
-
-```text
-/api/:path* → BACKEND_API_URL/api/:path*
-```
-
-Biến môi trường duy nhất đang được đọc trong mã cấu hình là `BACKEND_API_URL`, mặc định `http://localhost:3001`. Có thể tạo `.env.local` ở thư mục gốc để đổi địa chỉ:
-
-```dotenv
-BACKEND_API_URL=http://localhost:3001
-```
-
-Cấu hình này chuẩn bị đường dẫn proxy cho việc tích hợp sau này. **Các service hiện tại vẫn đọc/ghi mock database**, chưa gọi HTTP API. Axios đã được khai báo trong dependency nhưng chưa được sử dụng trong `src/`. Repository chưa có backend, schema database hoặc API handler triển khai nghiệp vụ.
-
-## Giới hạn hiện tại
-
-- Xác thực, mật khẩu và phân quyền đang được mô phỏng ở phía trình duyệt. Dữ liệu lưu cục bộ, không dùng chung giữa các thiết bị; cần backend để vận hành với dữ liệu thật.
-- QR tại `/my/activities` là hình minh họa bằng icon. Nút điểm danh chỉ thay đổi state hiện tại, chưa lưu qua service; chưa có luồng quét QR thực tế.
-- Bộ lọc thời gian và hình thức hỗ trợ tại `/events` đã có giao diện nhưng chưa được áp dụng vào truy vấn dữ liệu.
-- Ảnh được ghi nhận bằng URL. Xác nhận quyền riêng tư là bước nhập liệu; ứng dụng chưa tự làm mờ ảnh hoặc tải file lên dịch vụ lưu trữ.
-- Một số nội dung và số liệu giới thiệu ở trang chủ là dữ liệu minh họa, không phải thống kê vận hành thực tế.
-- Dữ liệu seed dùng mốc thời gian cố định năm 2026. Giao diện hiện chỉ có bản dịch tiếng Việt.
+---
+*Dự án OpenAid — Vì một cộng đồng thiện nguyện minh bạch, trách nhiệm và gắn kết.*

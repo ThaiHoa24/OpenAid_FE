@@ -20,6 +20,8 @@ import {
   ExternalLink,
   ChevronRight,
   Info,
+  Trash2,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { donationService } from "@/services";
@@ -36,8 +38,9 @@ export default function MyDonationsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadData = () => {
     if (user) {
       setLoading(true);
       donationService
@@ -50,7 +53,23 @@ export default function MyDonationsPage() {
     } else {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    loadData();
   }, [user]);
+
+  const handleCancelDonation = async (donationId: string) => {
+    if (!user) return;
+    try {
+      await donationService.cancelMyDonation(donationId, user);
+      showToast("Đã hủy cam kết quyên góp thành công", "info");
+      setCancellingId(null);
+      loadData();
+    } catch (err: any) {
+      showToast(err.message || "Không thể hủy cam kết", "error");
+    }
+  };
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -394,25 +413,84 @@ export default function MyDonationsPage() {
                 </div>
               </div>
 
-              {/* View Timeline CTA */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[11px] text-[#5F6F66] font-medium">
-                  {don.status === "DISTRIBUTED"
-                    ? "Đã trao tận tay bà con"
-                    : don.batchId
-                    ? "Đang theo chuyến xe"
-                    : "Chờ tổ chức gom lô"}
-                </span>
-                <Link
-                  href={`/track/${don.trackingId}`}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#1F4D36]/10 hover:bg-[#1F4D36] text-[#1F4D36] hover:text-white text-xs font-bold transition group"
-                >
-                  <span>Xem hành trình</span>
-                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-                </Link>
+              {/* View Timeline CTA & Actions */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                {don.status === "PENDING" ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setCancellingId(don.id)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Hủy cam kết</span>
+                    </button>
+                    <Link
+                      href={`/track/${don.trackingId}`}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#1F4D36]/10 hover:bg-[#1F4D36] text-[#1F4D36] hover:text-white text-xs font-bold transition group"
+                    >
+                      <span>Xem chi tiết</span>
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[11px] text-[#5F6F66] font-medium">
+                      {don.status === "DISTRIBUTED"
+                        ? "Đã trao tận tay bà con"
+                        : don.batchId
+                        ? "Đang theo chuyến xe"
+                        : don.status === "CANCELLED"
+                        ? "Cam kết đã hủy"
+                        : "Đã nhập kho tập kết"}
+                    </span>
+                    <Link
+                      href={`/track/${don.trackingId}`}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#1F4D36]/10 hover:bg-[#1F4D36] text-[#1F4D36] hover:text-white text-xs font-bold transition group"
+                    >
+                      <span>Xem hành trình</span>
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Cancel Donation Confirmation Modal */}
+      {cancellingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl border border-slate-200">
+            <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="text-sm font-bold text-slate-900">
+                Xác nhận hủy cam kết hiện vật?
+              </h3>
+              <p className="text-xs text-slate-500">
+                Số lượng hiện vật bạn đã cam kết sẽ được hoàn trả lại danh mục nhu cầu còn thiếu của chiến dịch để nhà hảo tâm khác có thể hỗ trợ.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setCancellingId(null)}
+                className="flex-1 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Giữ lại
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCancelDonation(cancellingId)}
+                className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition cursor-pointer"
+              >
+                Hủy cam kết
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

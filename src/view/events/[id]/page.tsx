@@ -22,14 +22,19 @@ import {
   ShieldCheck,
   Share2,
   UserCheck,
+  X,
+  Truck,
+  Camera,
 } from "lucide-react";
 import {
   eventService,
   volunteerService,
   donationService,
   transparencyService,
+  tripService,
   type EnrichedEvent,
 } from "@/services";
+import type { EnrichedTrip } from "@/services/tripService";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -62,8 +67,9 @@ export default function EventDetailPage({
 
   const [event, setEvent] = useState<EnrichedEvent | null>(null);
   const [logs, setLogs] = useState<TransparencyLog[]>([]);
+  const [trips, setTrips] = useState<EnrichedTrip[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "volunteer" | "donations" | "transparency">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "volunteer" | "donations" | "transparency" | "trips">("overview");
 
   // Volunteer Modal State
   const [volunteerModalOpen, setVolunteerModalOpen] = useState(false);
@@ -87,10 +93,12 @@ export default function EventDetailPage({
     Promise.all([
       eventService.getById(eventId),
       transparencyService.getLogs({ eventId }),
-    ]).then(([evt, eventLogs]) => {
+      tripService.getByOrganization(undefined, eventId),
+    ]).then(([evt, eventLogs, eventTrips]) => {
       if (isMounted) {
         setEvent(evt);
         setLogs(eventLogs);
+        setTrips(eventTrips || []);
         setLoading(false);
       }
     });
@@ -443,6 +451,18 @@ export default function EventDetailPage({
           <Clock className="w-4 h-4" />
           <span>{t("eventDetail.tabs.transparency")} ({logs.length})</span>
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("trips")}
+          className={`pb-3 border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+            activeTab === "trips"
+              ? "border-teal-600 text-teal-700"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <Truck className="w-4 h-4" />
+          <span>Chuyến Xe Cứu Trợ ({trips.length})</span>
+        </button>
       </div>
 
       {/* TAB 1: OVERVIEW */}
@@ -514,6 +534,51 @@ export default function EventDetailPage({
                 })}
               </div>
             </div>
+
+            {/* Active Trips Quick Box */}
+            {trips.length > 0 && (
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-5 h-5 text-teal-600" />
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Đoàn Xe Phân Phối Thực Địa ({trips.length} Chuyến)
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("trips")}
+                    className="text-xs font-bold text-teal-600 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Xem toàn bộ lộ trình</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {trips.slice(0, 2).map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => setActiveTab("trips")}
+                      className="p-4 rounded-xl border border-slate-100 bg-slate-50 hover:border-teal-200 transition cursor-pointer space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-bold text-sky-800 bg-sky-100 px-2 py-0.5 rounded">
+                          {t.tripCode}
+                        </span>
+                        <StatusBadge status={t.status} />
+                      </div>
+                      <h4 className="font-bold text-xs text-slate-900 line-clamp-1">{t.name}</h4>
+                      <div className="text-[11px] text-slate-500 space-y-0.5">
+                        <p>Khởi hành: <strong>{new Date(t.scheduledDate).toLocaleDateString("vi-VN")}</strong></p>
+                        <p>Trưởng đoàn: <strong>{t.leader?.name || "TNV"}</strong></p>
+                        <p className="text-teal-700 font-semibold">{t.points?.length || 0} điểm trao quà thực địa</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar Info */}
@@ -858,6 +923,137 @@ export default function EventDetailPage({
         </div>
       )}
 
+      {/* TAB 5: TRIPS */}
+      {activeTab === "trips" && (
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/90 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">
+                Các Chuyến Xe Điều Phối Cứu Trợ Thực Địa ({trips.length})
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Theo dõi tiến độ di chuyển, các điểm phát quà và lô hàng cứu trợ được vận chuyển cho chiến dịch
+              </p>
+            </div>
+            {isOrganizer && (
+              <Link
+                href="/organizer/trips"
+                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+              >
+                <Truck className="w-4 h-4" />
+                <span>Bàn Điều Phối Chuyến Xe →</span>
+              </Link>
+            )}
+          </div>
+
+          {trips.length === 0 ? (
+            <div className="p-12 text-center rounded-2xl border border-dashed border-slate-200 space-y-3">
+              <Truck className="w-10 h-10 text-slate-300 mx-auto" />
+              <h3 className="text-sm font-bold text-slate-800">
+                Chưa có chuyến xe nào xuất phát cho chiến dịch này
+              </h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Ban tổ chức đang trong quá trình tiếp nhận hiện vật tại kho và sắp xếp đội ngũ tình nguyện viên. Các chuyến xe phân phối sẽ được cập nhật tại đây ngay khi có lệnh điều động.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {trips.map((tItem) => {
+                const isUserInTrip = user && (tItem.leaderId === user.id || tItem.volunteers?.some((v) => v.userId === user.id));
+                return (
+                  <div
+                    key={tItem.id}
+                    className="p-5 sm:p-6 rounded-2xl border border-slate-200/90 hover:border-teal-300 transition-all space-y-5 bg-slate-50/40"
+                  >
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-sky-800 bg-sky-100 px-2.5 py-0.5 rounded border border-sky-300">
+                            {tItem.tripCode}
+                          </span>
+                          <StatusBadge status={tItem.status} />
+                          {isUserInTrip && (
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                              ✓ Bạn tham gia chuyến này
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-base font-bold text-slate-900">{tItem.name}</h3>
+                      </div>
+
+                      <div className="text-xs text-slate-500 space-y-0.5 sm:text-right">
+                        <div>Ngày khởi hành: <strong>{new Date(tItem.scheduledDate).toLocaleDateString("vi-VN")}</strong></div>
+                        <div>Tập kết: <strong>{tItem.departurePoint}</strong></div>
+                      </div>
+                    </div>
+
+                    {/* Leader & Crew summary */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="p-3 rounded-xl bg-white border border-slate-200/80">
+                        <span className="text-slate-400 font-medium text-[10px] uppercase block">Trưởng đoàn xe</span>
+                        <strong className="text-slate-900 mt-0.5 block">{tItem.leader?.name || "TNV Trưởng đoàn"}</strong>
+                        {tItem.leader?.phone && <span className="text-slate-500 text-[11px]">📞 {tItem.leader.phone}</span>}
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-white border border-slate-200/80">
+                        <span className="text-slate-400 font-medium text-[10px] uppercase block">Lực lượng TNV</span>
+                        <strong className="text-slate-900 mt-0.5 block">{tItem.volunteers?.length || 0} tình nguyện viên</strong>
+                        <span className="text-slate-500 text-[11px]">Đã phân công xe</span>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-white border border-slate-200/80">
+                        <span className="text-slate-400 font-medium text-[10px] uppercase block">Hàng hóa chuyên chở</span>
+                        <strong className="text-slate-900 mt-0.5 block">{tItem.batches?.length || 0} Lô cứu trợ</strong>
+                        <span className="text-slate-500 text-[11px] truncate block">
+                          {tItem.batches?.map((b) => `${b.totalQuantity} ${b.unit} ${b.itemType}`).join(", ") || "Đang đóng gói"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Delivery stops */}
+                    <div className="space-y-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                        Lộ Trình Các Điểm Cứu Trợ ({tItem.points?.length || 0} điểm)
+                      </span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {tItem.points?.map((pt) => (
+                          <div key={pt.id} className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <h4 className="font-bold text-xs text-slate-900">{pt.order}. {pt.name}</h4>
+                                <p className="text-[11px] text-slate-500 mt-0.5">{pt.address}</p>
+                              </div>
+                              <StatusBadge status={pt.status} />
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] text-slate-600 pt-1 border-t border-slate-100">
+                              <span>Hộ thụ hưởng: <strong>{pt.plannedHouseholds || 50} hộ</strong></span>
+                              {pt.contactPerson && <span className="truncate max-w-[140px]">{pt.contactPerson}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {isUserInTrip && (
+                      <div className="pt-2 flex justify-end">
+                        <Link
+                          href="/my/activities"
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 hover:text-teal-900 hover:underline"
+                        >
+                          <span>Xem chi tiết lệnh điều động & điểm danh tại Sổ Hoạt Động Của Tôi →</span>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* VOLUNTEER APPLICATION MODAL */}
       {volunteerModalOpen && selectedRole && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
@@ -874,9 +1070,9 @@ export default function EventDetailPage({
               <button
                 type="button"
                 onClick={() => setVolunteerModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -997,9 +1193,9 @@ export default function EventDetailPage({
                   <button
                     type="button"
                     onClick={() => setDonationModalOpen(false)}
-                    className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
+                    className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
                   >
-                    ✕
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
 

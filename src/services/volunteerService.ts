@@ -293,4 +293,38 @@ export const volunteerService = {
     storageService.saveDb(db);
     return enrichApplication(db.volunteerApplications[idx]);
   },
+
+  async withdrawApplication(
+    applicationId: string,
+    actor: User
+  ): Promise<boolean> {
+    await delay(180);
+    const db = storageService.getDb();
+    const idx = db.volunteerApplications.findIndex(
+      (a) => a.id === applicationId && a.userId === actor.id
+    );
+    if (idx === -1) throw new Error("Không tìm thấy đơn đăng ký.");
+    if (db.volunteerApplications[idx].status !== "PENDING") {
+      throw new Error("Chỉ có thể rút các đơn đang ở trạng thái CHỜ DUYỆT.");
+    }
+
+    const app = db.volunteerApplications[idx];
+    const event = db.events.find((e) => e.id === app.eventId);
+
+    db.volunteerApplications.splice(idx, 1);
+
+    storageService.addLog(db, {
+      actorId: actor.id,
+      actorName: actor.name,
+      actorRole: "VOLUNTEER",
+      action: "VOLUNTEER_WITHDRAWN",
+      description: `Tình nguyện viên ${actor.name} đã rút đơn đăng ký tại '${event?.title || "Chiến dịch"}'.`,
+      entityType: "EVENT",
+      entityId: applicationId,
+      eventId: app.eventId,
+    });
+
+    storageService.saveDb(db);
+    return true;
+  },
 };
