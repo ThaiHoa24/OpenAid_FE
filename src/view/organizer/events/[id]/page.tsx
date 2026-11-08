@@ -45,7 +45,7 @@ export default function OrganizerEventDetailPage({
   const eventId = resolvedParams.id;
 
   const router = useRouter();
-  const { user, activeOrganization, isOrganizer, loginAsDemo } = useAuth();
+  const { user, session, activeOrganization, isOrganizer, loginAsDemo } = useAuth();
   const { showToast } = useToast();
   const { formatDate, formatDateTime } = useTranslation();
 
@@ -157,6 +157,37 @@ export default function OrganizerEventDetailPage({
           <ArrowLeft className="w-4 h-4" />
           <span>Về danh sách chiến dịch</span>
         </Link>
+      </div>
+    );
+  }
+
+  // Ownership authorization check: Event must belong to user's activeOrganization or an organization where user is ORGANIZER (or user is system ADMIN)
+  const isOwner =
+    user.systemRole === "ADMIN" ||
+    activeOrganization?.id === event.organizationId ||
+    (session?.memberships?.some(
+      (m) => m.organization.id === event.organizationId && m.role === "ORGANIZER"
+    ) ?? false);
+
+  if (!isOwner) {
+    return (
+      <div className="max-w-xl mx-auto my-16 p-8 bg-white rounded-3xl border border-rose-200 text-center space-y-4 shadow-sm">
+        <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+          <Ban className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">Từ Chối Truy Cập (403 Forbidden)</h2>
+        <p className="text-sm text-slate-600 max-w-md mx-auto">
+          Bạn không có quyền quản lý chiến dịch này. Mỗi tài khoản Ban tổ chức chỉ được phép xem và điều phối các chiến dịch thuộc về tổ chức của mình.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/organizer/events"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1F4D36] hover:bg-[#163827] text-white text-xs font-bold transition shadow-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Về danh sách chiến dịch của tôi</span>
+          </Link>
+        </div>
       </div>
     );
   }

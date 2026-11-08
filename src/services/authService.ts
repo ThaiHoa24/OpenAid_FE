@@ -46,6 +46,26 @@ export const authService = {
     }
   },
 
+  assertOrganizerAccess(actor: User, organizationId: string): void {
+    if (actor.systemRole === "ADMIN") return;
+    const db = storageService.getDb();
+    const isOrganizer = db.organizationMembers.some(
+      (m) => m.userId === actor.id && m.organizationId === organizationId && m.role === "ORGANIZER"
+    );
+    if (!isOrganizer) {
+      throw new Error(
+        "Forbidden (403): Bạn không có quyền quản lý tài nguyên của tổ chức này. Mỗi tài khoản Ban tổ chức chỉ được quản lý chiến dịch thuộc tổ chức của mình."
+      );
+    }
+  },
+
+  isOrganizerOf(userId: string, organizationId: string): boolean {
+    const db = storageService.getDb();
+    return db.organizationMembers.some(
+      (m) => m.userId === userId && m.organizationId === organizationId && m.role === "ORGANIZER"
+    );
+  },
+
   async login(email: string, password?: string): Promise<SessionContext> {
     await delay(250);
     const db = storageService.getDb();

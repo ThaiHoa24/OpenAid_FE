@@ -1,4 +1,5 @@
 import { storageService } from "./storageService";
+import { authService } from "./authService";
 import type {
   Donation,
   DonationBatch,
@@ -185,14 +186,17 @@ export const donationService = {
     if (idx === -1) throw new Error("Donation not found.");
 
     const donation = db.donations[idx];
+    const event = db.events.find((e) => e.id === donation.eventId);
+    if (!event) throw new Error("Associated event not found.");
+
+    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
+    authService.assertOrganizerAccess(actor, event.organizationId);
+
     if (donation.status !== "PENDING") {
       throw new Error(
         `Invalid status transition: Cannot confirm receipt for a donation in ${donation.status} status.`
       );
     }
-
-    const event = db.events.find((e) => e.id === donation.eventId);
-    if (!event) throw new Error("Associated event not found.");
 
     const now = new Date().toISOString();
     const oldStatus = donation.status;
@@ -268,6 +272,12 @@ export const donationService = {
     if (idx === -1) throw new Error("Donation not found.");
 
     const donation = db.donations[idx];
+    const event = db.events.find((e) => e.id === donation.eventId);
+    if (!event) throw new Error("Associated event not found.");
+
+    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
+    authService.assertOrganizerAccess(actor, event.organizationId);
+
     if (donation.status !== "PENDING") {
       throw new Error(
         `Invalid status transition: Only PENDING donations can be rejected (Current: ${donation.status}).`

@@ -1,4 +1,5 @@
 import { storageService } from "./storageService";
+import { authService } from "./authService";
 import type {
   Event,
   Organization,
@@ -179,6 +180,12 @@ export const volunteerService = {
     if (idx === -1) throw new Error("Volunteer application not found.");
 
     const app = db.volunteerApplications[idx];
+    const event = db.events.find((e) => e.id === app.eventId);
+    if (!event) throw new Error("Event not found.");
+
+    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
+    authService.assertOrganizerAccess(actor, event.organizationId);
+
     if (app.status !== "PENDING") {
       throw new Error(
         `Invalid status transition: Application is already ${app.status}. Only PENDING applications can be reviewed.`
@@ -188,7 +195,6 @@ export const volunteerService = {
     const roleIdx = db.volunteerRoles.findIndex(
       (r) => r.id === app.volunteerRoleId
     );
-    const event = db.events.find((e) => e.id === app.eventId);
     const applicant = db.users.find((u) => u.id === app.userId);
 
     if (decision === "APPROVED" && roleIdx !== -1) {

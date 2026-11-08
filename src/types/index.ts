@@ -68,6 +68,7 @@ export interface Event {
   category: SupportCategory;
   status: EventStatus;
   organizationId: string;
+  createdById?: string;
   createdAt: string;
   updatedAt: string;
 }

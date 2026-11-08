@@ -63,6 +63,11 @@ Hệ thống được thiết kế theo mô hình phân quyền 2 tầng linh ho
 
 ### 2. Ban Tổ Chức Cứu Trợ (System Role: `USER` + Organization Role: `ORGANIZER`)
 * **Vai trò**: Các tổ chức phi chính phủ (NGO), đội nhóm thiện nguyện được cấp phép tạo chiến dịch và điều phối hiện vật thực địa.
+* **Nguyên tắc sở hữu & Cách ly dữ liệu (Organization-Scoped Authorization & Anti-IDOR)**:
+  * Khác với `ADMIN` (vai trò cấp cao toàn sàn), nền tảng hỗ trợ nhiều đơn vị cùng đăng ký vai trò `ORGANIZER`. Mỗi tài khoản Organizer chỉ sở hữu và điều phối đúng các tài nguyên (Chiến dịch, Hàng cứu trợ, Kho bãi, Lô hàng, Chuyến xe, Tình nguyện viên) thuộc về **Tổ chức của mình**.
+  * **Cơ chế bảo vệ 2 lớp (Defense in Depth)**:
+    1. *Lớp Giao diện (UI Guard)*: Trang chi tiết `/organizer/events/[id]` kiểm tra quyền sở hữu đối chiếu giữa `event.organizationId` và tổ chức hoạt động của người dùng (`activeOrganization`). Nếu truy cập chéo vào chiến dịch của đơn vị khác, hệ thống lập tức hiển thị màn hình **403 Forbidden - Từ chối truy cập**.
+    2. *Lớp Nghiệp vụ (Service-Level Enforcement)*: Các hàm tác vụ quan trọng trong `eventService`, `volunteerService`, `donationService` đều kích hoạt hàm xác thực `authService.assertOrganizerAccess(actor, organizationId)` trước khi cho phép ghi nhận dữ liệu (Sửa, Xóa nháp, Đổi trạng thái, Duyệt đơn TNV, Xác nhận nhập kho).
 * **Khu vực làm việc**: `/organizer/*` (`/organizer/dashboard`, `/organizer/events`, `/organizer/donations`, `/organizer/inventory`, `/organizer/batches`, `/organizer/trips`, `/organizer/volunteers`, `/organizer/transparency`).
 * **Thao tác chính**:
   * **Trung tâm Điều hành (Operations Dashboard)**: Giám sát lô hàng sẵn sàng gom xe, chuyến xe đang chạy trên đường, truy cập nhanh Action Center.
@@ -217,7 +222,8 @@ npm run start
 | Email | Vai trò | Khu vực hoạt động chính | Mục đích demo |
 | :--- | :--- | :--- | :--- |
 | `user@openaid.demo` | `USER` | `/my/activities`, `/my/donations` | Trải nghiệm nộp đơn TNV, cam kết hiện vật, nhận Lệnh điều động xe, điểm danh thực địa |
-| `organizer@openaid.demo` | `ORGANIZER` | `/organizer/dashboard` | Quản lý tổ chức *Helping Hands Da Nang*, điều hành kho, gom lô, điều phối đoàn xe |
+| `organizer@openaid.demo` | `ORGANIZER` | `/organizer/dashboard` | Quản lý tổ chức *Helping Hands Da Nang* (`org-1`), quản lý các chiến dịch `evt-1`, `evt-2`, `evt-4`, `evt-6`, `evt-7` |
+| `central.relief@openaid.demo` | `ORGANIZER` | `/organizer/dashboard` | Quản lý tổ chức *Central Vietnam Relief Foundation* (`org-2`), sở hữu chiến dịch `evt-3`, `evt-5`. Dùng để kiểm thử cách ly dữ liệu giữa các Ban tổ chức |
 | `admin@openaid.demo` | `ADMIN` | `/admin/dashboard` | Duyệt tổ chức mới, giám sát kiểm toán hệ thống |
 | `volunteer.b@openaid.demo` | `USER` | `/my/activities` | Tài khoản TNV thứ hai để thử phân công Trưởng đoàn / Đội ngũ chuyến xe |
 | `greenhope@openaid.demo` | `ORGANIZER` (Pending) | `/profile` | Tổ chức *Green Hope Youth Network* đang chờ Admin duyệt |

@@ -1,4 +1,5 @@
 import { storageService } from "./storageService";
+import { authService } from "./authService";
 import type {
   DonationNeed,
   Event,
@@ -182,6 +183,9 @@ export const eventService = {
 
   async create(input: CreateEventInput, actor: User): Promise<EnrichedEvent> {
     await delay(300);
+    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
+    authService.assertOrganizerAccess(actor, input.organizationId);
+
     const db = storageService.getDb();
     const org = db.organizations.find((o) => o.id === input.organizationId);
     if (!org) throw new Error("Organization not found.");
@@ -217,6 +221,7 @@ export const eventService = {
       category: input.category,
       status,
       organizationId: input.organizationId,
+      createdById: actor.id,
       createdAt: now,
       updatedAt: now,
     };
@@ -276,6 +281,9 @@ export const eventService = {
     if (idx === -1) throw new Error("Event not found.");
 
     const existing = db.events[idx];
+    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
+    authService.assertOrganizerAccess(actor, existing.organizationId);
+
     if (existing.status === "CLOSED" || existing.status === "CANCELLED") {
       throw new Error(`Cannot edit an event that is already ${existing.status}.`);
     }
@@ -383,6 +391,9 @@ export const eventService = {
     if (idx === -1) throw new Error("Event not found.");
 
     const event = db.events[idx];
+    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
+    authService.assertOrganizerAccess(actor, event.organizationId);
+
     const oldStatus = event.status;
 
     if (oldStatus === targetStatus) return enrichEvent(event);
@@ -440,6 +451,9 @@ export const eventService = {
     const db = storageService.getDb();
     const event = db.events.find((e) => e.id === eventId);
     if (!event) throw new Error("Event not found.");
+
+    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
+    authService.assertOrganizerAccess(_actor, event.organizationId);
 
     const hasApps = db.volunteerApplications.some((a) => a.eventId === eventId);
     const hasDonations = db.donations.some((d) => d.eventId === eventId);
