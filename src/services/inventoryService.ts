@@ -1,4 +1,5 @@
 import { storageService } from "./storageService";
+import apiClient from "@/lib/api/axiosClient";
 import type { Event, InventoryItem, Organization } from "@/types";
 import { delay, verifyInventoryEquation } from "@/utils";
 
@@ -6,6 +7,32 @@ export interface EnrichedInventoryItem extends InventoryItem {
   event?: Event;
   organization?: Organization;
   isEquationValid: boolean;
+}
+
+function mapBeInventory(i: any): EnrichedInventoryItem {
+  const item: InventoryItem = {
+    id: i.id,
+    eventId: i.eventId,
+    organizationId: i.organizationId || i.event?.organizationId || "",
+    itemType: i.itemType?.name || (typeof i.itemType === "string" ? i.itemType : "") || "Hàng cứu trợ",
+    itemTypeId: i.itemTypeId,
+    unit: i.unit?.name || (typeof i.unit === "string" ? i.unit : "") || "Phần",
+    unitId: i.unitId,
+    received: Number(i.receivedTotal ?? i.received ?? 0),
+    receivedTotal: Number(i.receivedTotal ?? i.received ?? 0),
+    available: Number(i.available ?? 0),
+    reserved: Number(i.reserved ?? 0),
+    distributed: Number(i.distributed ?? 0),
+    lostWrittenOff: Number(i.lostWrittenOff ?? 0),
+    notes: i.notes,
+    updatedAt: i.updatedAt || new Date().toISOString(),
+  };
+
+  return {
+    ...item,
+    event: i.event,
+    isEquationValid: verifyInventoryEquation(item),
+  };
 }
 
 function enrichInventory(item: InventoryItem): EnrichedInventoryItem {
@@ -27,6 +54,20 @@ export const inventoryService = {
     organizationId?: string,
     eventId?: string
   ): Promise<EnrichedInventoryItem[]> {
+    if (organizationId && organizationId !== "ALL") {
+      try {
+        const queryParams = eventId && eventId !== "ALL" ? `?eventId=${eventId}` : "";
+        const res = await apiClient.get<any, any[]>(
+          `/inventory/organization/${organizationId}${queryParams}`
+        );
+        if (Array.isArray(res)) {
+          return res.map(mapBeInventory);
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
     await delay(200);
     const db = storageService.getDb();
     let list = db.inventory;

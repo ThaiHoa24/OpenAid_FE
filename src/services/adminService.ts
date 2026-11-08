@@ -1,4 +1,5 @@
 import { storageService } from "./storageService";
+import apiClient from "@/lib/api/axiosClient";
 import type {
   Organization,
   OrganizationStatus,
@@ -51,6 +52,37 @@ export const adminService = {
   },
 
   async getAllUsers(search?: string, statusFilter?: string): Promise<EnrichedUser[]> {
+    try {
+      const res = await apiClient.get<any, any>("/admin/users");
+      const items = Array.isArray(res) ? res : res?.items;
+      if (Array.isArray(items)) {
+        return items.map((u: any) => ({
+          id: u.id,
+          name: u.fullName || u.name || "",
+          fullName: u.fullName || u.name || "",
+          email: u.email,
+          phone: u.phoneNumber || u.phone || "",
+          phoneNumber: u.phoneNumber || u.phone || "",
+          systemRole: u.systemRole,
+          status: (u.isActive !== false && u.status !== "DISABLED" ? "ACTIVE" : "DISABLED") as UserStatus,
+          isActive: u.isActive !== false,
+          createdAt: u.createdAt || new Date().toISOString(),
+          organizations: Array.isArray(u.memberships)
+            ? u.memberships.map((m: any) => ({
+                id: m.organization?.id || m.organizationId,
+                name: m.organization?.name || "",
+                role: m.role,
+                status: m.organization?.status || "APPROVED",
+              }))
+            : [],
+          volunteerApplicationsCount: u.volunteerApplications?.length ?? 0,
+          donationsCount: u.donations?.length ?? 0,
+        }));
+      }
+    } catch {
+      // Fallback
+    }
+
     await delay(200);
     const db = storageService.getDb();
     let list = db.users.slice();
@@ -108,6 +140,31 @@ export const adminService = {
     nextStatus: UserStatus,
     actor: User
   ): Promise<User> {
+    try {
+      const res = await apiClient.patch<any, any>(`/admin/users/${userId}/active`, {
+        isActive: nextStatus === "ACTIVE",
+      });
+      if (res && res.id) {
+        return {
+          id: res.id,
+          name: res.fullName || res.name || "",
+          fullName: res.fullName || res.name || "",
+          email: res.email,
+          phone: res.phoneNumber || res.phone || "",
+          phoneNumber: res.phoneNumber || res.phone || "",
+          systemRole: res.systemRole,
+          status: (res.isActive ? "ACTIVE" : "DISABLED") as UserStatus,
+          isActive: res.isActive,
+          createdAt: res.createdAt,
+        };
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Fallback
+    }
+
     await delay(220);
     const db = storageService.getDb();
     const idx = db.users.findIndex((u) => u.id === userId);
@@ -183,6 +240,26 @@ export const adminService = {
     nextStatus: OrganizationStatus,
     actor: User
   ): Promise<Organization> {
+    try {
+      const res = await apiClient.patch<any, any>(
+        `/admin/organizations/${orgId}/review`,
+        {
+          status: nextStatus,
+        }
+      );
+      if (res && res.id) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("openaid-auth-changed"));
+        }
+        return res;
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Fallback
+    }
+
     await delay(250);
     const db = storageService.getDb();
     const idx = db.organizations.findIndex((o) => o.id === orgId);

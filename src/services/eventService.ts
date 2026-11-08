@@ -1,11 +1,14 @@
 import { storageService } from "./storageService";
 import { authService } from "./authService";
+import apiClient from "@/lib/api/axiosClient";
 import type {
   DonationNeed,
   Event,
   EventStatus,
+  ItemType,
   Organization,
   SupportCategory,
+  Unit,
   User,
   VolunteerRole,
 } from "@/types";
@@ -101,7 +104,94 @@ function enrichEvent(event: Event): EnrichedEvent {
 }
 
 export const eventService = {
+  async getItemTypes(): Promise<ItemType[]> {
+    try {
+      const list = await apiClient.get<any, ItemType[]>("/events/catalogs/item-types");
+      if (Array.isArray(list) && list.length > 0) return list;
+    } catch {
+      // Fallback
+    }
+    return [
+      { id: "50000000-0000-4000-8000-000000000001", code: "RICE", name: "Gạo (Rice)", category: "Food", isActive: true },
+      { id: "50000000-0000-4000-8000-000000000002", code: "WATER", name: "Nước khoáng (Drinking water)", category: "Beverages", isActive: true },
+    ];
+  },
+
+  async getUnits(): Promise<Unit[]> {
+    try {
+      const list = await apiClient.get<any, Unit[]>("/events/catalogs/units");
+      if (Array.isArray(list) && list.length > 0) return list;
+    } catch {
+      // Fallback
+    }
+    return [
+      { id: "60000000-0000-4000-8000-000000000001", code: "KG", name: "Kilogram (kg)", isActive: true },
+      { id: "60000000-0000-4000-8000-000000000002", code: "BOTTLE", name: "Chai / Bình (Bottle)", isActive: true },
+    ];
+  },
+
   async getAll(filters?: EventFilterOptions): Promise<EnrichedEvent[]> {
+    // Try BE first
+    try {
+      const beEvents = await apiClient.get<any, any[]>("/events", {
+        params: {
+          search: filters?.search,
+          area: filters?.area !== "ALL" ? filters?.area : undefined,
+          status: filters?.status !== "ALL" ? filters?.status : undefined,
+        },
+      });
+
+      if (Array.isArray(beEvents) && beEvents.length > 0) {
+        return beEvents.map((e) => ({
+          id: e.id,
+          organizationId: e.organizationId,
+          createdById: e.createdById,
+          title: e.title,
+          description: e.description || "",
+          location: e.location,
+          area: e.location || "Miền Trung",
+          startDate: e.startDate,
+          endDate: e.endDate || e.startDate,
+          status: e.status,
+          createdAt: e.createdAt,
+          updatedAt: e.updatedAt || e.createdAt,
+          contactName: e.contactName || "Ban điều phối",
+          contactPerson: e.contactName || "Ban điều phối",
+          contactPhone: e.contactPhone || "",
+          contactEmail: "",
+          imageUrl:
+            "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&auto=format&fit=crop&q=80",
+          category: "Disaster Relief",
+          organization: e.organization,
+          volunteerRoles: (e.volunteerRoles || []).map((r: any) => ({
+            ...r,
+            requiredQuantity: r.quantity || 0,
+            approvedQuantity: 0,
+          })),
+          donationNeeds: (e.donationNeeds || []).map((n: any) => ({
+            ...n,
+            itemType: n.itemType?.name || n.itemType || "Hàng cứu trợ",
+            unit: n.unit?.name || n.unit || "phần",
+            targetQuantity: typeof n.targetQuantity === "object" ? Number(n.targetQuantity) : Number(n.targetQuantity),
+            pledgedQuantity: 0,
+            receivedQuantity: 0,
+            distributedQuantity: 0,
+          })),
+          totalRequiredVolunteers: (e.volunteerRoles || []).reduce(
+            (sum: number, r: any) => sum + (r.quantity || 0),
+            0
+          ),
+          totalApprovedVolunteers: 0,
+          applicationsCount: 0,
+          donationsCount: 0,
+          tripsCount: 0,
+          canPhysicalDelete: e.status === "DRAFT",
+        }));
+      }
+    } catch {
+      // Fallback to local DB
+    }
+
     await delay(220);
     const db = storageService.getDb();
     let list = db.events.map(enrichEvent);
@@ -174,6 +264,62 @@ export const eventService = {
   },
 
   async getById(id: string): Promise<EnrichedEvent | null> {
+    try {
+      const beEvent = await apiClient.get<any, any>(`/events/${id}`);
+      if (beEvent) {
+        return {
+          id: beEvent.id,
+          organizationId: beEvent.organizationId,
+          createdById: beEvent.createdById,
+          title: beEvent.title,
+          description: beEvent.description || "",
+          location: beEvent.location,
+          area: beEvent.location || "Miền Trung",
+          startDate: beEvent.startDate,
+          endDate: beEvent.endDate || beEvent.startDate,
+          status: beEvent.status,
+          createdAt: beEvent.createdAt,
+          updatedAt: beEvent.updatedAt || beEvent.createdAt,
+          contactName: beEvent.contactName || "Ban điều phối",
+          contactPerson: beEvent.contactName || "Ban điều phối",
+          contactPhone: beEvent.contactPhone || "",
+          contactEmail: "",
+          imageUrl:
+            "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&auto=format&fit=crop&q=80",
+          category: "Disaster Relief",
+          organization: beEvent.organization,
+          volunteerRoles: (beEvent.volunteerRoles || []).map((r: any) => ({
+            ...r,
+            requiredQuantity: r.quantity || 0,
+            approvedQuantity: 0,
+          })),
+          donationNeeds: (beEvent.donationNeeds || []).map((n: any) => ({
+            ...n,
+            itemType: n.itemType?.name || n.itemType || "Hàng cứu trợ",
+            unit: n.unit?.name || n.unit || "phần",
+            targetQuantity:
+              typeof n.targetQuantity === "object"
+                ? Number(n.targetQuantity)
+                : Number(n.targetQuantity),
+            pledgedQuantity: 0,
+            receivedQuantity: 0,
+            distributedQuantity: 0,
+          })),
+          totalRequiredVolunteers: (beEvent.volunteerRoles || []).reduce(
+            (sum: number, r: any) => sum + (r.quantity || 0),
+            0
+          ),
+          totalApprovedVolunteers: 0,
+          applicationsCount: 0,
+          donationsCount: 0,
+          tripsCount: 0,
+          canPhysicalDelete: beEvent.status === "DRAFT",
+        };
+      }
+    } catch {
+      // Fallback
+    }
+
     await delay(180);
     const db = storageService.getDb();
     const ev = db.events.find((e) => e.id === id);
@@ -385,6 +531,11 @@ export const eventService = {
     targetStatus: EventStatus,
     actor: User
   ): Promise<EnrichedEvent> {
+    try {
+      await apiClient.patch(`/events/${eventId}/status`, { status: targetStatus });
+    } catch {
+      // Fallback
+    }
     await delay(250);
     const db = storageService.getDb();
     const idx = db.events.findIndex((e) => e.id === eventId);

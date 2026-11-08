@@ -1,4 +1,5 @@
 import { storageService } from "./storageService";
+import apiClient from "@/lib/api/axiosClient";
 import type {
   BatchStatus,
   DistributionTrip,
@@ -15,6 +16,48 @@ export interface EnrichedBatch extends DonationBatch {
   organization?: Organization;
   donations: Donation[];
   currentTrip?: DistributionTrip;
+}
+
+function mapBeBatchToEnriched(b: any): EnrichedBatch {
+  const donationIds = Array.isArray(b.donations)
+    ? b.donations.map((d: any) => d.id)
+    : Array.isArray(b.donationIds)
+    ? b.donationIds
+    : [];
+
+  const itemTypeName =
+    b.itemType?.name ||
+    (typeof b.itemType === "string" ? b.itemType : "") ||
+    "Hàng cứu trợ";
+  const unitName =
+    b.unit?.name || (typeof b.unit === "string" ? b.unit : "") || "Phần";
+  const trip = b.assignments?.[0]?.trip || b.currentTrip;
+
+  return {
+    id: b.id,
+    batchCode: b.batchCode,
+    name: b.name || `Lô ${b.batchCode} - ${itemTypeName}`,
+    eventId: b.eventId,
+    organizationId: b.organizationId || b.event?.organizationId || "",
+    itemType: itemTypeName,
+    itemTypeId: b.itemTypeId,
+    unit: unitName,
+    unitId: b.unitId,
+    totalQuantity: Number(b.totalQuantity ?? 0),
+    distributedQuantity: Number(b.distributedQuantity ?? 0),
+    returnedQuantity: Number(b.returnedQuantity ?? 0),
+    remainingQuantity: Number(b.remainingQuantity ?? 0),
+    lostQuantity: Number(b.lostQuantity ?? 0),
+    status: b.status,
+    donationIds,
+    donations: Array.isArray(b.donations) ? b.donations : [],
+    currentTripId: trip?.id || b.currentTripId,
+    currentTrip: trip,
+    reconciliationNote: b.reconciliationNote,
+    createdAt: b.createdAt || new Date().toISOString(),
+    updatedAt: b.updatedAt || new Date().toISOString(),
+    event: b.event,
+  };
 }
 
 function enrichBatch(batch: DonationBatch): EnrichedBatch {
@@ -61,6 +104,15 @@ export const batchService = {
   },
 
   async getByEvent(eventId: string): Promise<EnrichedBatch[]> {
+    try {
+      const res = await apiClient.get<any, any[]>(`/batches/event/${eventId}`);
+      if (Array.isArray(res)) {
+        return res.map(mapBeBatchToEnriched);
+      }
+    } catch {
+      // Fallback
+    }
+
     await delay(160);
     const db = storageService.getDb();
     return db.batches
@@ -110,6 +162,21 @@ export const batchService = {
     },
     actor: User
   ): Promise<EnrichedBatch> {
+    try {
+      const res = await apiClient.post<any, any>("/batches", {
+        eventId: payload.eventId,
+        donationIds: payload.donationIds,
+      });
+      if (res && res.id) {
+        return mapBeBatchToEnriched(res);
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Fallback
+    }
+
     await delay(280);
     const db = storageService.getDb();
     const event = db.events.find((e) => e.id === payload.eventId);
@@ -255,6 +322,20 @@ export const batchService = {
   },
 
   async markBatchReady(batchId: string, actor: User): Promise<EnrichedBatch> {
+    try {
+      const res = await apiClient.patch<any, any>(`/batches/${batchId}/status`, {
+        status: "READY",
+      });
+      if (res && res.id) {
+        return mapBeBatchToEnriched(res);
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Fallback
+    }
+
     await delay(200);
     const db = storageService.getDb();
     const idx = db.batches.findIndex((b) => b.id === batchId);
@@ -298,6 +379,22 @@ export const batchService = {
     },
     actor: User
   ): Promise<EnrichedBatch> {
+    try {
+      const res = await apiClient.post<any, any>(`/batches/${batchId}/reconcile`, {
+        returnedQuantity: Number(payload.returnedQuantity || 0),
+        lostQuantity: Number(payload.lostQuantity || 0),
+        note: payload.note || "Reconciled batch quantities",
+      });
+      if (res && res.id) {
+        return mapBeBatchToEnriched(res);
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Fallback
+    }
+
     await delay(260);
     const db = storageService.getDb();
     const idx = db.batches.findIndex((b) => b.id === batchId);

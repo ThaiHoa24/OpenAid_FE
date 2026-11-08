@@ -1,5 +1,6 @@
 import { storageService } from "./storageService";
 import { authService } from "./authService";
+import apiClient from "@/lib/api/axiosClient";
 import type {
   Donation,
   DonationBatch,
@@ -54,6 +55,22 @@ export const donationService = {
   },
 
   async getByUser(userId: string): Promise<EnrichedDonation[]> {
+    try {
+      const res = await apiClient.get<any, any>("/donations/my");
+      if (res && Array.isArray(res.items)) {
+        return res.items.map((d: any) => ({
+          ...d,
+          userId: d.donorId,
+          donorId: d.donorId,
+          itemType: d.itemType?.name || d.itemType || "Hàng cứu trợ",
+          unit: d.unit?.name || d.unit || "phần",
+          event: d.event,
+        }));
+      }
+    } catch {
+      // Fallback
+    }
+
     await delay(200);
     const db = storageService.getDb();
     return db.donations
@@ -66,6 +83,22 @@ export const donationService = {
   },
 
   async getByEvent(eventId: string): Promise<EnrichedDonation[]> {
+    try {
+      const res = await apiClient.get<any, any>(`/donations/event/${eventId}`);
+      if (res && Array.isArray(res.items)) {
+        return res.items.map((d: any) => ({
+          ...d,
+          userId: d.donorId,
+          donorId: d.donorId,
+          itemType: d.itemType?.name || d.itemType || "Hàng cứu trợ",
+          unit: d.unit?.name || d.unit || "phần",
+          donor: d.donor,
+        }));
+      }
+    } catch {
+      // Fallback
+    }
+
     await delay(200);
     const db = storageService.getDb();
     return db.donations
@@ -113,6 +146,25 @@ export const donationService = {
     },
     actor: User
   ): Promise<EnrichedDonation> {
+    try {
+      const beDonation = await apiClient.post<any, any>("/donations", {
+        donationNeedId: payload.donationNeedId,
+        quantity: Number(payload.quantity),
+      });
+      if (beDonation) {
+        return {
+          ...beDonation,
+          userId: actor.id,
+          donorId: actor.id,
+          itemType: beDonation.itemType?.name || beDonation.itemType || "Hàng cứu trợ",
+          unit: beDonation.unit?.name || beDonation.unit || "phần",
+          donor: actor,
+        };
+      }
+    } catch {
+      // Fallback
+    }
+
     await delay(280);
     const db = storageService.getDb();
     const event = db.events.find((e) => e.id === payload.eventId);
@@ -180,6 +232,14 @@ export const donationService = {
     donationId: string,
     actor: User
   ): Promise<EnrichedDonation> {
+    try {
+      await apiClient.patch(`/donations/${donationId}/receipt`, {
+        status: "RECEIVED",
+      });
+    } catch {
+      // Fallback
+    }
+
     await delay(260);
     const db = storageService.getDb();
     const idx = db.donations.findIndex((d) => d.id === donationId);
@@ -266,6 +326,15 @@ export const donationService = {
     actor: User,
     reason?: string
   ): Promise<EnrichedDonation> {
+    try {
+      await apiClient.patch(`/donations/${donationId}/receipt`, {
+        status: "REJECTED",
+        rejectionReason: reason || "Không đạt tiêu chuẩn kiểm định",
+      });
+    } catch {
+      // Fallback
+    }
+
     await delay(250);
     const db = storageService.getDb();
     const idx = db.donations.findIndex((d) => d.id === donationId);
@@ -324,6 +393,12 @@ export const donationService = {
     donationId: string,
     actor: User
   ): Promise<EnrichedDonation> {
+    try {
+      await apiClient.post(`/donations/${donationId}/cancel`);
+    } catch {
+      // Fallback
+    }
+
     await delay(220);
     const db = storageService.getDb();
     const idx = db.donations.findIndex((d) => d.id === donationId);

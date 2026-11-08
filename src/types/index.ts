@@ -1,5 +1,6 @@
 // ============================================================
-// OpenAid — Complete TypeScript Models & Interfaces
+// OpenAid — Standardized TypeScript Models & Interfaces
+// Synchronized with OpenAid_BE PostgreSQL & Prisma Schema
 // ============================================================
 
 export type SystemRole = "USER" | "ADMIN";
@@ -7,40 +8,56 @@ export type OrganizationRole = "MEMBER" | "ORGANIZER";
 export type UserStatus = "ACTIVE" | "DISABLED";
 
 export interface User {
-  id: string;
+  id: string; // UUID v4
   email: string;
   password?: string;
-  name: string;
-  phone: string;
+  fullName?: string;
+  name: string; // Synced alias to fullName
+  phoneNumber?: string;
+  phone: string; // Synced alias to phoneNumber
   avatarUrl?: string;
   bio?: string;
   systemRole: SystemRole;
-  status: UserStatus;
+  isActive?: boolean;
+  status: UserStatus; // Synced alias: isActive ? 'ACTIVE' : 'DISABLED'
   createdAt: string;
+  updatedAt?: string;
 }
 
-export type OrganizationStatus = "PENDING" | "APPROVED" | "DISABLED";
+export type OrgStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+export type OrganizationStatus = OrgStatus | "DISABLED";
 
 export interface Organization {
-  id: string;
+  id: string; // UUID v4
+  code?: string; // Unique short code e.g. "OPENAID-DEMO"
   name: string;
   description: string;
-  logoUrl?: string;
-  contactEmail: string;
-  contactPhone: string;
+  email?: string;
+  contactEmail: string; // Synced alias
+  phoneNumber?: string;
+  contactPhone: string; // Synced alias
   address: string;
-  website?: string;
   status: OrganizationStatus;
-  verifiedAt?: string;
+  createdById?: string;
+  reviewedById?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
   createdAt: string;
+  updatedAt?: string;
+  logoUrl?: string;
+  website?: string;
+  verifiedAt?: string;
 }
 
 export interface OrganizationMember {
-  id: string;
+  id: string; // UUID v4
   userId: string;
   organizationId: string;
   role: OrganizationRole;
-  joinedAt: string;
+  createdAt?: string;
+  joinedAt: string; // Synced alias to createdAt
+  user?: User;
+  organization?: Organization;
 }
 
 export type EventStatus = "DRAFT" | "PUBLISHED" | "CLOSED" | "CANCELLED";
@@ -53,48 +70,73 @@ export type SupportCategory =
   | "Community Support"
   | "Emergency Shelter";
 
-export interface Event {
-  id: string;
-  title: string;
-  description: string;
-  location: string;
-  area: string;
-  startDate: string;
-  endDate: string;
-  contactPerson: string;
-  contactPhone: string;
-  contactEmail: string;
-  imageUrl: string;
-  category: SupportCategory;
-  status: EventStatus;
-  organizationId: string;
-  createdById?: string;
-  createdAt: string;
-  updatedAt: string;
+export interface ItemType {
+  id: string; // UUID v4
+  code: string;
+  name: string;
+  category: string;
+  isActive: boolean;
+}
+
+export interface Unit {
+  id: string; // UUID v4
+  code: string;
+  name: string;
+  isActive: boolean;
 }
 
 export interface VolunteerRole {
-  id: string;
+  id: string; // UUID v4
   eventId: string;
   name: string;
   description: string;
-  requiredQuantity: number;
+  quantity?: number;
+  requiredQuantity: number; // Synced alias to quantity
   approvedQuantity: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type VolunteerApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type ApplicationStatus = VolunteerApplicationStatus;
 
 export interface VolunteerApplication {
-  id: string;
+  id: string; // UUID v4
   eventId: string;
   userId: string;
   volunteerRoleId: string;
-  note: string;
   status: ApplicationStatus;
-  checkedInAt?: string;
-  checkedOutAt?: string;
+  notes?: string;
+  note: string; // Synced alias to notes
+  reviewedById?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
+
+  // Attendance
+  checkedInAt?: string;
+  checkedOutAt?: string;
+
+  // Relations
+  user?: User;
+  role?: VolunteerRole;
+}
+
+export interface DonationNeed {
+  id: string; // UUID v4
+  eventId: string;
+  itemTypeId?: string;
+  unitId?: string;
+  itemType: string; // Synced string name for UI
+  unit: string; // Synced string name for UI
+  targetQuantity: number;
+  pledgedQuantity: number;
+  receivedQuantity: number;
+  distributedQuantity: number;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type DonationStatus =
@@ -105,45 +147,75 @@ export type DonationStatus =
   | "DISTRIBUTED"
   | "CANCELLED";
 
-export interface DonationNeed {
-  id: string;
-  eventId: string;
-  itemType: string;
-  unit: string;
-  targetQuantity: number;
-  pledgedQuantity: number;
-  receivedQuantity: number;
-  distributedQuantity: number;
-}
-
 export interface Donation {
-  id: string;
+  id: string; // UUID v4
   trackingId: string;
   eventId: string;
-  userId: string;
   donationNeedId: string;
+  itemTypeId?: string;
+  unitId?: string;
+  donorId?: string;
+  userId: string; // Synced alias to donorId
+  batchId?: string;
   itemType: string;
   unit: string;
   quantity: number;
-  note?: string;
+  receivedQuantity?: number;
   photoUrl?: string;
   status: DonationStatus;
-  batchId?: string;
+  receivedById?: string;
+  receivedAt?: string;
+  rejectionReason?: string;
+  note?: string;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface Event {
+  id: string; // UUID v4
+  organizationId: string;
+  createdById?: string;
+  title: string;
+  description: string;
+  location: string;
+  contactName?: string;
+  contactPerson: string; // Synced alias to contactName
+  contactPhone: string;
+  startDate: string;
+  endDate: string;
+  status: EventStatus;
+  createdAt: string;
+  updatedAt: string;
+
+  // UI extensions
+  area: string;
+  imageUrl: string;
+  category: SupportCategory;
+  contactEmail: string;
+  organization?: Organization;
+  volunteerRoles?: VolunteerRole[];
+  donationNeeds?: DonationNeed[];
+}
+
 export interface InventoryItem {
-  id: string;
+  id: string; // UUID v4
   eventId: string;
   organizationId: string;
+  itemTypeId?: string;
+  unitId?: string;
   itemType: string;
   unit: string;
   received: number;
+  receivedTotal?: number;
   available: number;
   reserved: number;
   distributed: number;
   lostWrittenOff: number;
+  receivedQuantity?: number;
+  availableQuantity?: number;
+  reservedQuantity?: number;
+  distributedQuantity?: number;
+  lostQuantity?: number;
   notes?: string;
   updatedAt: string;
 }
@@ -151,14 +223,19 @@ export interface InventoryItem {
 export type BatchStatus = "DRAFT" | "READY" | "ASSIGNED" | "DISTRIBUTED";
 
 export interface DonationBatch {
-  id: string;
+  id: string; // UUID v4
   batchCode: string;
   name: string;
   eventId: string;
   organizationId: string;
+  createdById?: string;
+  inventoryId?: string;
+  itemTypeId?: string;
+  unitId?: string;
   itemType: string;
   unit: string;
-  totalQuantity: number;
+  quantity?: number;
+  totalQuantity: number; // Synced alias to quantity
   distributedQuantity: number;
   returnedQuantity: number;
   remainingQuantity: number;
@@ -187,49 +264,64 @@ export type DistributionPointStatus =
 export type TripVolunteerRole = "LEADER" | "MEMBER";
 
 export interface TripVolunteer {
-  id: string;
+  id: string; // UUID v4
   tripId: string;
-  userId: string;
+  eventId?: string;
   applicationId: string;
   role: TripVolunteerRole;
+  assignedAt?: string;
+  userId: string;
+  user?: User;
 }
 
 export interface DistributionPoint {
-  id: string;
+  id: string; // UUID v4
   tripId: string;
+  position?: number;
+  order: number; // Synced alias to position
   name: string;
-  address: string;
-  order: number;
-  contactPerson?: string;
-  plannedHouseholds?: number;
+  location?: string;
+  address: string; // Synced alias to location
+  mapUrl?: string;
   status: DistributionPointStatus;
   arrivedAt?: string;
   distributedAt?: string;
+  skippedReason?: string;
+  contactPerson?: string;
+  plannedHouseholds?: number;
   note?: string;
 }
 
 export interface DistributionRecord {
-  id: string;
+  id: string; // UUID v4
   tripId: string;
+  tripBatchId?: string;
   distributionPointId: string;
   batchId: string;
   batchCode: string;
   itemType: string;
   unit: string;
   distributedQuantity: number;
+  beneficiaryCount?: number;
   note?: string;
+  notes?: string; // Synced alias
   recordedBy: string;
   recordedAt: string;
+  confirmedById?: string;
+  confirmedAt?: string;
 }
 
 export interface DistributionTrip {
-  id: string;
+  id: string; // UUID v4
   tripCode: string;
   name: string;
   eventId: string;
   organizationId: string;
+  createdById?: string;
   departurePoint: string;
-  scheduledDate: string;
+  departureDate?: string;
+  scheduledDate: string; // Synced alias to departureDate
+  vehicle?: string;
   startedAt?: string;
   completedAt?: string;
   cancelledAt?: string;
@@ -238,61 +330,79 @@ export interface DistributionTrip {
   batchIds: string[];
   leaderId: string;
   volunteers: TripVolunteer[];
+  points?: DistributionPoint[];
   notes?: string;
   createdAt: string;
   updatedAt: string;
 }
 
+export type EvidenceReviewStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type EvidenceStatus =
+  | EvidenceReviewStatus
   | "PENDING_REVIEW"
   | "APPROVED_PUBLIC"
   | "REJECTED_PUBLIC";
 
 export interface Evidence {
-  id: string;
-  eventId: string;
+  id: string; // UUID v4
   tripId: string;
+  eventId: string;
   distributionPointId: string;
+  distributionRecordId?: string;
   batchId?: string;
+  uploadedById?: string;
   imageUrl: string;
+  mimeType?: string;
+  sizeBytes?: number;
   caption: string;
   privacyConfirmed: boolean;
-  status: EvidenceStatus;
+  reviewStatus?: EvidenceReviewStatus;
+  status: EvidenceStatus; // Synced alias
+  reviewedById?: string;
+  reviewedAt?: string;
+  reviewNote?: string;
   uploadedBy: string;
   uploadedByName: string;
-  uploadedAt: string;
   reviewedBy?: string;
-  reviewedAt?: string;
+  uploadedAt: string;
 }
 
 export type TransparencyEntityType =
+  | "USER"
+  | "ORGANIZATION"
   | "EVENT"
+  | "VOLUNTEER_APPLICATION"
   | "DONATION"
   | "INVENTORY"
   | "BATCH"
   | "TRIP"
   | "DISTRIBUTION_POINT"
-  | "EVIDENCE"
-  | "ORGANIZATION";
+  | "DISTRIBUTION_RECORD"
+  | "EVIDENCE";
 
 export interface TransparencyLog {
-  id: string;
-  timestamp: string;
-  actorId: string;
-  actorName: string;
-  actorRole: string;
+  id: string; // UUID v4
+  eventId?: string;
   action: string;
-  description: string;
-  oldStatus?: string;
-  newStatus?: string;
   entityType: TransparencyEntityType;
   entityId: string;
-  eventId?: string;
+  actorId: string;
+  oldStatus?: string;
+  newStatus?: string;
+  evidenceId?: string;
+  details?: Record<string, unknown>;
+  isPublic?: boolean;
+  createdAt?: string;
+
+  // Synced aliases
+  timestamp: string; // Synced alias to createdAt
+  actorName: string;
+  actorRole: string;
+  description: string;
   donationId?: string;
   batchId?: string;
   tripId?: string;
   distributionPointId?: string;
-  evidenceId?: string;
 }
 
 export interface PublicTrackingResult {
@@ -310,7 +420,7 @@ export interface PublicTrackingResult {
   batch?: {
     id: string;
     batchCode: string;
-    name: string;
+    name?: string;
     itemType: string;
     unit: string;
     totalQuantity: number;
@@ -324,7 +434,7 @@ export interface PublicTrackingResult {
   trip?: {
     id: string;
     tripCode: string;
-    name: string;
+    name?: string;
     departurePoint: string;
     scheduledDate: string;
     status: TripStatus;

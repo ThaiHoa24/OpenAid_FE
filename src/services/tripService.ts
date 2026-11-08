@@ -1,5 +1,6 @@
 import { storageService } from "./storageService";
 import { batchService } from "./batchService";
+import apiClient from "@/lib/api/axiosClient";
 import type {
   DistributionPoint,
   DistributionPointStatus,
@@ -34,6 +35,193 @@ export interface EnrichedTrip extends DistributionTrip {
   points: EnrichedDistributionPoint[];
   records: DistributionRecord[];
   evidences: Evidence[];
+}
+
+function mapBeTripToEnriched(t: any): EnrichedTrip {
+  const batches = Array.isArray(t.batches)
+    ? t.batches.map((tb: any) => {
+        const b = tb.batch || tb;
+        return {
+          id: b.id || tb.batchId,
+          batchCode: b.batchCode || "",
+          name: b.name || `Lô ${b.batchCode || ""}`,
+          eventId: b.eventId || t.eventId,
+          organizationId:
+            b.organizationId || t.organizationId || t.event?.organizationId || "",
+          itemType:
+            b.itemType?.name ||
+            (typeof b.itemType === "string" ? b.itemType : "") ||
+            "Hàng cứu trợ",
+          unit:
+            b.unit?.name || (typeof b.unit === "string" ? b.unit : "") || "Phần",
+          totalQuantity: Number(b.totalQuantity ?? 0),
+          distributedQuantity: Number(b.distributedQuantity ?? 0),
+          returnedQuantity: Number(b.returnedQuantity ?? 0),
+          remainingQuantity: Number(b.remainingQuantity ?? 0),
+          lostQuantity: Number(b.lostQuantity ?? 0),
+          status: b.status || "READY",
+          donationIds: Array.isArray(b.donations)
+            ? b.donations.map((d: any) => d.id)
+            : [],
+          createdAt: b.createdAt || t.createdAt,
+          updatedAt: b.updatedAt || t.updatedAt,
+        };
+      })
+    : [];
+
+  const batchIds = batches.map((b: any) => b.id);
+
+  let leaderId = t.leaderId || "";
+  let leaderUser: any = undefined;
+
+  const enrichedVolunteers: EnrichedTripVolunteer[] = Array.isArray(t.volunteers)
+    ? t.volunteers.map((tv: any) => {
+        const u = tv.application?.user || tv.user;
+        const roleName =
+          tv.application?.volunteerRole?.name || tv.roleName || "";
+        const userId = u?.id || tv.userId || "";
+        if (tv.role === "LEADER") {
+          leaderId = userId;
+          leaderUser = u
+            ? {
+                ...u,
+                name: u.fullName || u.name,
+                phone: u.phoneNumber || u.phone,
+              }
+            : undefined;
+        }
+        return {
+          id: tv.id,
+          tripId: tv.tripId || t.id,
+          userId,
+          applicationId: tv.applicationId || "",
+          role: tv.role,
+          user: u
+            ? {
+                ...u,
+                name: u.fullName || u.name,
+                phone: u.phoneNumber || u.phone,
+              }
+            : undefined,
+          roleName,
+        };
+      })
+    : [];
+
+  const allRecords: DistributionRecord[] = [];
+  const points: EnrichedDistributionPoint[] = Array.isArray(t.points)
+    ? t.points.map((p: any) => {
+        const ptRecords: DistributionRecord[] = Array.isArray(p.records)
+          ? p.records.map((r: any) => {
+              const rec: DistributionRecord = {
+                id: r.id,
+                tripId: r.tripId || t.id,
+                distributionPointId: p.id,
+                batchId: r.tripBatch?.batchId || r.batchId || "",
+                batchCode:
+                  r.tripBatch?.batch?.batchCode || r.batchCode || "",
+                itemType:
+                  r.tripBatch?.batch?.itemType?.name || r.itemType || "",
+                unit: r.tripBatch?.batch?.unit?.name || r.unit || "",
+                distributedQuantity: Number(r.distributedQuantity ?? 0),
+                note: r.notes || r.note,
+                recordedBy: r.recordedById || r.recordedBy || "",
+                recordedAt: r.distributedAt || r.recordedAt || r.createdAt,
+              };
+              allRecords.push(rec);
+              return rec;
+            })
+          : [];
+
+        const ptEvidences: Evidence[] = Array.isArray(p.evidence)
+          ? p.evidence.map((e: any) => ({
+              id: e.id,
+              eventId: t.eventId,
+              tripId: t.id,
+              distributionPointId: p.id,
+              imageUrl: e.imageUrl || e.url || "",
+              caption: e.caption || "",
+              status:
+                e.reviewStatus === "APPROVED"
+                  ? "APPROVED_PUBLIC"
+                  : e.status || "PENDING_REVIEW",
+              uploadedBy: e.uploadedById || e.uploadedBy || "",
+              uploadedAt: e.createdAt || e.uploadedAt,
+            }))
+          : [];
+
+        return {
+          id: p.id,
+          tripId: t.id,
+          order: p.position ?? p.order ?? 1,
+          name: p.name,
+          address: p.location || p.address || "",
+          contactPerson: p.contactPerson,
+          plannedHouseholds: p.plannedHouseholds,
+          status: p.status,
+          arrivedAt: p.arrivedAt,
+          distributedAt: p.distributedAt,
+          note: p.skippedReason || p.note,
+          records: ptRecords,
+          evidences: ptEvidences,
+        };
+      })
+    : [];
+
+  const rawEvidences = Array.isArray(t.evidence) ? t.evidence : [];
+  const evidences: Evidence[] = rawEvidences.map((e: any) => ({
+    id: e.id,
+    eventId: t.eventId,
+    tripId: t.id,
+    distributionPointId: e.distributionPointId,
+    batchId: e.batchId,
+    imageUrl: e.imageUrl || e.url || "",
+    caption: e.caption || "",
+    status:
+      e.reviewStatus === "APPROVED"
+        ? "APPROVED_PUBLIC"
+        : e.status || "PENDING_REVIEW",
+    uploadedBy: e.uploadedById || e.uploadedBy || "",
+    uploadedAt: e.createdAt || e.uploadedAt,
+  }));
+
+  return {
+    id: t.id,
+    tripCode: t.tripCode,
+    name: t.name || `Chuyến đi ${t.tripCode}`,
+    eventId: t.eventId,
+    organizationId:
+      t.organizationId || t.event?.organizationId || "",
+    departurePoint: t.departurePoint,
+    departureDate: t.departureDate,
+    scheduledDate: t.departureDate
+      ? new Date(t.departureDate).toISOString()
+      : t.scheduledDate || "",
+    vehicle: t.vehicle,
+    status: t.status,
+    notes: t.notes,
+    cancelReason: t.cancelReason,
+    completedAt: t.completedAt,
+    cancelledAt: t.cancelledAt,
+    batchIds,
+    batches,
+    leaderId,
+    leader: leaderUser,
+    volunteers: enrichedVolunteers.map((ev) => ({
+      id: ev.id,
+      tripId: ev.tripId,
+      userId: ev.userId,
+      applicationId: ev.applicationId,
+      role: ev.role,
+    })),
+    enrichedVolunteers,
+    points,
+    records: allRecords,
+    evidences,
+    createdAt: t.createdAt || new Date().toISOString(),
+    updatedAt: t.updatedAt || new Date().toISOString(),
+    event: t.event,
+  };
 }
 
 function canModifyTrip(
@@ -111,6 +299,18 @@ export const tripService = {
     organizationId?: string,
     eventId?: string
   ): Promise<EnrichedTrip[]> {
+    if (eventId && eventId !== "ALL") {
+      try {
+        const res = await apiClient.get<any, any>(`/trips/event/${eventId}`);
+        const items = Array.isArray(res) ? res : res?.items;
+        if (Array.isArray(items)) {
+          return items.map(mapBeTripToEnriched);
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
     await delay(220);
     const db = storageService.getDb();
     let list = db.trips;
@@ -144,6 +344,15 @@ export const tripService = {
   },
 
   async getById(tripId: string): Promise<EnrichedTrip | null> {
+    try {
+      const res = await apiClient.get<any, any>(`/trips/${tripId}`);
+      if (res && res.id) {
+        return mapBeTripToEnriched(res);
+      }
+    } catch {
+      // Fallback
+    }
+
     await delay(160);
     const db = storageService.getDb();
     const trip = db.trips.find((t) => t.id === tripId);
@@ -170,6 +379,45 @@ export const tripService = {
     },
     actor: User
   ): Promise<EnrichedTrip> {
+    try {
+      const db = storageService.getDb();
+      const volunteers = payload.volunteerApplicationIds.map((appId) => {
+        const app = db.volunteerApplications.find((a) => a.id === appId);
+        const isLeader =
+          (app && app.userId === payload.leaderUserId) ||
+          appId === payload.leaderUserId;
+        return {
+          applicationId: appId,
+          role: isLeader ? "LEADER" : "MEMBER",
+        };
+      });
+
+      const points = payload.distributionPoints.map((p, idx) => ({
+        position: idx + 1,
+        name: p.name,
+        location: p.address,
+      }));
+
+      const res = await apiClient.post<any, any>("/trips", {
+        eventId: payload.eventId,
+        departurePoint: payload.departurePoint,
+        departureDate: new Date(payload.scheduledDate).toISOString(),
+        vehicle: payload.name || "Xe cứu trợ",
+        batchIds: payload.batchIds,
+        volunteers,
+        points,
+      });
+
+      if (res && res.id) {
+        return mapBeTripToEnriched(res);
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Fallback
+    }
+
     await delay(300);
     const db = storageService.getDb();
     const event = db.events.find((e) => e.id === payload.eventId);
@@ -338,6 +586,20 @@ export const tripService = {
       >;
     }
   ): Promise<EnrichedTrip> {
+    try {
+      const res = await apiClient.patch<any, any>(`/trips/${tripId}/status`, {
+        status: nextStatus,
+      });
+      if (res && res.id) {
+        return mapBeTripToEnriched(res);
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Fallback
+    }
+
     await delay(260);
     const db = storageService.getDb();
     const idx = db.trips.findIndex((t) => t.id === tripId);
@@ -517,6 +779,25 @@ export const tripService = {
     actor: User,
     note?: string
   ): Promise<EnrichedTrip> {
+    try {
+      const res = await apiClient.patch<any, any>(
+        `/distribution/points/${pointId}/status`,
+        {
+          status: nextStatus,
+          skippedReason: note,
+        }
+      );
+      if (res && res.tripId) {
+        const trip = await this.getById(res.tripId);
+        if (trip) return trip;
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Fallback
+    }
+
     await delay(220);
     const db = storageService.getDb();
     const pIdx = db.distributionPoints.findIndex((p) => p.id === pointId);
@@ -626,6 +907,29 @@ export const tripService = {
     },
     actor: User
   ): Promise<EnrichedTrip> {
+    try {
+      // Find tripBatchId if possible from trip
+      const trip = await this.getById(payload.tripId);
+      const tripBatchId =
+        (trip as any)?.batches?.find((b: any) => b.id === payload.batchId || (b as any).batchId === payload.batchId)
+          ?.id || payload.batchId;
+
+      await apiClient.post<any, any>("/distribution/records", {
+        tripBatchId,
+        distributionPointId: payload.distributionPointId,
+        distributedQuantity: Number(payload.distributedQuantity),
+        notes: payload.note,
+      });
+
+      const updated = await this.getById(payload.tripId);
+      if (updated) return updated;
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Fallback
+    }
+
     await delay(260);
     const db = storageService.getDb();
     const trip = db.trips.find((t) => t.id === payload.tripId);

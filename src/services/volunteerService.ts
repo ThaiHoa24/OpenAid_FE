@@ -1,5 +1,6 @@
 import { storageService } from "./storageService";
 import { authService } from "./authService";
+import apiClient from "@/lib/api/axiosClient";
 import type {
   Event,
   Organization,
@@ -44,6 +45,22 @@ export const volunteerService = {
   },
 
   async getByUser(userId: string): Promise<EnrichedVolunteerApplication[]> {
+    try {
+      const items = await apiClient.get<any, any[]>("/volunteers/my");
+      if (Array.isArray(items)) {
+        return items.map((a: any) => ({
+          ...a,
+          note: a.notes || a.note || "",
+          event: a.event,
+          role: a.volunteerRole,
+          checkedInAt: a.attendance?.checkedInAt,
+          checkedOutAt: a.attendance?.checkedOutAt,
+        }));
+      }
+    } catch {
+      // Fallback
+    }
+
     await delay(200);
     const db = storageService.getDb();
     return db.volunteerApplications
@@ -56,6 +73,22 @@ export const volunteerService = {
   },
 
   async getByEvent(eventId: string): Promise<EnrichedVolunteerApplication[]> {
+    try {
+      const items = await apiClient.get<any, any[]>(`/volunteers/event/${eventId}`);
+      if (Array.isArray(items)) {
+        return items.map((a: any) => ({
+          ...a,
+          note: a.notes || a.note || "",
+          user: a.user,
+          role: a.volunteerRole,
+          checkedInAt: a.attendance?.checkedInAt,
+          checkedOutAt: a.attendance?.checkedOutAt,
+        }));
+      }
+    } catch {
+      // Fallback
+    }
+
     await delay(200);
     const db = storageService.getDb();
     return db.volunteerApplications
@@ -111,6 +144,27 @@ export const volunteerService = {
     },
     actor: User
   ): Promise<EnrichedVolunteerApplication> {
+    try {
+      const res = await apiClient.post<any, any>("/volunteers/apply", {
+        eventId: payload.eventId,
+        volunteerRoleId: payload.volunteerRoleId,
+        notes: payload.note,
+      });
+      if (res && res.id) {
+        return {
+          ...res,
+          note: res.notes || res.note || payload.note,
+          role: res.volunteerRole,
+          event: res.event,
+        };
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Fallback to local storage if offline
+    }
+
     await delay(260);
     const db = storageService.getDb();
     const event = db.events.find((e) => e.id === payload.eventId);
@@ -174,6 +228,25 @@ export const volunteerService = {
     decision: "APPROVED" | "REJECTED",
     actor: User
   ): Promise<EnrichedVolunteerApplication> {
+    try {
+      const res = await apiClient.patch<any, any>(`/volunteers/${applicationId}/review`, {
+        status: decision,
+      });
+      if (res && res.id) {
+        return {
+          ...res,
+          note: res.notes || res.note || "",
+          role: res.volunteerRole,
+          event: res.event,
+        };
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Fallback
+    }
+
     await delay(250);
     const db = storageService.getDb();
     const idx = db.volunteerApplications.findIndex((a) => a.id === applicationId);
@@ -226,6 +299,27 @@ export const volunteerService = {
     applicationId: string,
     actor: User
   ): Promise<EnrichedVolunteerApplication> {
+    try {
+      const res = await apiClient.post<any, any>(`/volunteers/${applicationId}/check-in`);
+      if (res) {
+        return {
+          id: applicationId,
+          eventId: res.application?.eventId || "",
+          userId: res.application?.userId || actor.id,
+          volunteerRoleId: res.application?.volunteerRoleId || "",
+          note: res.application?.notes || res.application?.note || "",
+          status: "APPROVED",
+          checkedInAt: res.checkedInAt || new Date().toISOString(),
+          createdAt: res.createdAt || new Date().toISOString(),
+          updatedAt: res.updatedAt || new Date().toISOString(),
+        };
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+    }
+
     await delay(220);
     const db = storageService.getDb();
     const idx = db.volunteerApplications.findIndex((a) => a.id === applicationId);
@@ -265,6 +359,27 @@ export const volunteerService = {
     applicationId: string,
     actor: User
   ): Promise<EnrichedVolunteerApplication> {
+    try {
+      const res = await apiClient.post<any, any>(`/volunteers/${applicationId}/check-out`);
+      if (res) {
+        return {
+          id: applicationId,
+          eventId: res.application?.eventId || "",
+          userId: res.application?.userId || actor.id,
+          volunteerRoleId: res.application?.volunteerRoleId || "",
+          note: res.application?.notes || res.application?.note || "",
+          status: "APPROVED",
+          checkedOutAt: res.checkedOutAt || new Date().toISOString(),
+          createdAt: res.createdAt || new Date().toISOString(),
+          updatedAt: res.updatedAt || new Date().toISOString(),
+        };
+      }
+    } catch (err: any) {
+      if (err?.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+    }
+
     await delay(220);
     const db = storageService.getDb();
     const idx = db.volunteerApplications.findIndex((a) => a.id === applicationId);
