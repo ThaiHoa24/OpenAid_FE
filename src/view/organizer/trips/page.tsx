@@ -10,11 +10,12 @@ import { batchService, type EnrichedBatch } from "@/services/batchService";
 import { volunteerService, type EnrichedVolunteerApplication } from "@/services/volunteerService";
 import { eventService, type EnrichedEvent } from "@/services/eventService";
 import { transparencyService } from "@/services/transparencyService";
+import { uploadService } from "@/services/uploadService";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { 
   Truck, Plus, MapPin, Users, Package, 
   CheckCircle2, Clock, AlertCircle, X, 
-  Loader2, ArrowRight, Play, Camera, ShieldCheck, Ban 
+  Loader2, ArrowRight, Play, Camera, ShieldCheck, Ban, UploadCloud 
 } from "lucide-react";
 
 export default function OrganizerTripsPage() {
@@ -52,6 +53,22 @@ export default function OrganizerTripsPage() {
   const [evidenceCaption, setEvidenceCaption] = useState<string>("Bàn giao quà cứu trợ tại nhà văn hóa thôn");
   const [privacyConfirmed, setPrivacyConfirmed] = useState<boolean>(true);
   const [selectedRecordBatchId, setSelectedRecordBatchId] = useState<string>("");
+  const [isUploadingEvidence, setIsUploadingEvidence] = useState<boolean>(false);
+
+  const handleEvidenceFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingEvidence(true);
+    try {
+      const res = await uploadService.uploadFile(file);
+      setEvidenceUrl(res.url);
+      showToast("Tải ảnh minh chứng thành công!", "success");
+    } catch (err: any) {
+      showToast(err.message || "Không thể tải lên hình ảnh", "error");
+    } finally {
+      setIsUploadingEvidence(false);
+    }
+  };
 
   const loadData = useCallback(async () => {
     if (!activeOrganization) {
@@ -631,13 +648,32 @@ export default function OrganizerTripsPage() {
 
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">{t("organizer.trips.photoUrlLabel")}</label>
-                  <input
-                    type="url"
-                    required
-                    value={evidenceUrl}
-                    onChange={(e) => setEvidenceUrl(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={evidenceUrl}
+                      onChange={(e) => setEvidenceUrl(e.target.value)}
+                      placeholder="https://... hoặc tải ảnh từ máy tính"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-slate-900 text-xs"
+                    />
+                    <label className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer border border-slate-200 shrink-0">
+                      {isUploadingEvidence ? <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> : <UploadCloud className="w-4 h-4 text-emerald-600" />}
+                      <span>{isUploadingEvidence ? "Đang tải..." : "Tải ảnh"}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleEvidenceFileChange}
+                        className="hidden"
+                        disabled={isUploadingEvidence}
+                      />
+                    </label>
+                  </div>
+                  {evidenceUrl && (
+                    <div className="mt-2 relative w-full h-24 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                      <img src={evidenceUrl} alt="Evidence preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
                 </div>
 
                 <div>

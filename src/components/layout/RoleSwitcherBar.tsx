@@ -9,7 +9,6 @@ import {
   Users,
   Heart,
   User,
-  RotateCcw,
   ChevronDown,
   ChevronUp,
   Sparkles,
@@ -23,7 +22,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 export function RoleSwitcherBar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isOrganizer, isAdmin, loginAsDemo, logout, resetDemoData } = useAuth();
+  const { user, isOrganizer, isAdmin, loginAsDemo, logout } = useAuth();
   const { showToast } = useToast();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -94,18 +93,6 @@ export function RoleSwitcherBar() {
     }
   };
 
-  const handleResetData = () => {
-    if (
-      window.confirm(
-        "Khôi phục toàn bộ dữ liệu mẫu (sự kiện, kho bãi, lô hàng, đóng góp) về mặc định ban đầu?"
-      )
-    ) {
-      resetDemoData();
-      showToast("Đã khôi phục dữ liệu mẫu ban đầu", "success");
-      router.refresh();
-    }
-  };
-
   return (
     <div className="relative z-50 bg-[#132d20] text-white border-b border-[#234e38] text-xs transition-all shadow-md">
       {/* Top micro strip: Status & Quick Return Button */}
@@ -147,16 +134,6 @@ export function RoleSwitcherBar() {
               <ArrowRight className="w-3 h-3" />
             </Link>
           )}
-
-          {/* Reset Demo Data Button */}
-          <button
-            type="button"
-            onClick={handleResetData}
-            title="Khôi phục lại dữ liệu mẫu của hệ thống"
-            className="p-1.5 rounded-md text-emerald-200/70 hover:text-white hover:bg-white/10 transition cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
 
           {/* Toggle Expand/Collapse */}
           <button

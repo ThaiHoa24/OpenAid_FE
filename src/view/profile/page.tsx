@@ -6,9 +6,10 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useTranslation } from "@/hooks/useTranslation";
 import { volunteerService } from "@/services/volunteerService";
 import { donationService } from "@/services/donationService";
+import { uploadService } from "@/services/uploadService";
 import { 
   User, ShieldCheck, HandHeart, 
-  Package, CheckCircle2, Save, Loader2 
+  Package, CheckCircle2, Save, Loader2, UploadCloud 
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -29,7 +30,23 @@ export default function ProfilePage() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingAvatar(true);
+    try {
+      const res = await uploadService.uploadFile(file);
+      setFormData((prev) => ({ ...prev, avatarUrl: res.url }));
+      showToast("Tải ảnh đại diện thành công!", "success");
+    } catch (err: any) {
+      showToast(err.message || "Không thể tải lên ảnh", "error");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   const loadProfileStats = useCallback(async () => {
     if (!user) return;
@@ -201,13 +218,26 @@ export default function ProfilePage() {
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 {t("profile.avatarUrl")}
               </label>
-              <input
-                type="url"
-                value={formData.avatarUrl}
-                onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-                placeholder="https://..."
-                className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={formData.avatarUrl}
+                  onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
+                  placeholder="https://... hoặc tải ảnh từ máy tính"
+                  className="flex-1 px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <label className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer border border-slate-200 shrink-0">
+                  {isUploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> : <UploadCloud className="w-4 h-4 text-emerald-600" />}
+                  <span>{isUploadingAvatar ? "Đang tải..." : "Tải ảnh"}</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
+                    disabled={isUploadingAvatar}
+                  />
+                </label>
+              </div>
             </div>
 
             <div>

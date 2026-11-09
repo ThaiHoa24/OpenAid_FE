@@ -7,7 +7,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { authService, storageService, type SessionContext } from "@/services";
+import { authService, type SessionContext } from "@/services";
 import type { Organization, User } from "@/types";
 
 interface AuthContextValue {
@@ -22,7 +22,6 @@ interface AuthContextValue {
   dbVersion: number;
   refreshSession: () => void;
   logout: () => void;
-  resetDemoData: () => void;
   login: (email: string, password?: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   loginAsDemo: (email: string) => Promise<boolean>;
   register: (payload: {
@@ -54,7 +53,6 @@ const AuthContext = createContext<AuthContextValue>({
   dbVersion: 0,
   refreshSession: () => {},
   logout: () => {},
-  resetDemoData: () => {},
   login: async () => ({ success: false, error: "Not initialized" }),
   loginAsDemo: async () => false,
   register: async () => ({ success: false, error: "Not initialized" }),
@@ -72,7 +70,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [dbVersion, setDbVersion] = useState(0);
 
   const loadSession = useCallback(() => {
-    storageService.getDb(); // Ensure DB is initialized
     const ctx = authService.getSessionContext();
     setSession(ctx);
     if (ctx?.primaryOrganization && !activeOrgId) {
@@ -94,20 +91,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const handleDbChange = () => {
-      setDbVersion((v) => v + 1);
-      const ctx = authService.getSessionContext();
-      setSession(ctx);
-    };
-
     window.addEventListener("openaid-auth-changed", handleAuthChange);
-    window.addEventListener("openaid-db-changed", handleDbChange);
-    window.addEventListener("storage", handleDbChange);
 
     return () => {
       window.removeEventListener("openaid-auth-changed", handleAuthChange);
-      window.removeEventListener("openaid-db-changed", handleDbChange);
-      window.removeEventListener("storage", handleDbChange);
     };
   }, [loadSession]);
 
@@ -115,13 +102,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authService.logout();
     setSession(null);
     setActiveOrgId("");
-  }, []);
-
-  const resetDemoData = useCallback(() => {
-    storageService.resetDb();
-    setDbVersion((v) => v + 1);
-    const ctx = authService.getSessionContext();
-    setSession(ctx);
   }, []);
 
   const login = useCallback(async (email: string, password?: string) => {
@@ -215,7 +195,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         dbVersion,
         refreshSession: loadSession,
         logout,
-        resetDemoData,
         login,
         loginAsDemo,
         register,

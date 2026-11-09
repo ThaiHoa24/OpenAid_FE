@@ -1,21 +1,12 @@
-import { storageService } from "./storageService";
-import { authService } from "./authService";
 import apiClient from "@/lib/api/axiosClient";
 import type {
   Donation,
   DonationBatch,
   DonationNeed,
   Event,
-  InventoryItem,
   Organization,
   User,
 } from "@/types";
-import {
-  delay,
-  generateId,
-  generateTrackingId,
-  verifyInventoryEquation,
-} from "@/utils";
 
 export interface EnrichedDonation extends Donation {
   donor?: User;
@@ -25,117 +16,113 @@ export interface EnrichedDonation extends Donation {
   batch?: DonationBatch;
 }
 
-function enrichDonation(d: Donation): EnrichedDonation {
-  const db = storageService.getDb();
-  const donor = db.users.find((u) => u.id === d.userId);
-  const event = db.events.find((e) => e.id === d.eventId);
-  const organization = event
-    ? db.organizations.find((o) => o.id === event.organizationId)
-    : undefined;
-  const donationNeed = db.donationNeeds.find((n) => n.id === d.donationNeedId);
-  const batch = d.batchId
-    ? db.batches.find((b) => b.id === d.batchId)
-    : undefined;
+function mapBeDonationToEnriched(d: any): EnrichedDonation {
+  const quantity =
+    typeof d.quantity === "object"
+      ? d.quantity?.toNumber?.() ?? Number(d.quantity)
+      : Number(d.quantity);
+  const receivedQuantity =
+    typeof d.receivedQuantity === "object"
+      ? d.receivedQuantity?.toNumber?.() ?? Number(d.receivedQuantity)
+      : Number(d.receivedQuantity || 0);
 
   return {
-    ...d,
-    donor,
-    event,
-    organization,
-    donationNeed,
-    batch,
+    id: d.id,
+    trackingId: d.trackingId,
+    eventId: d.eventId,
+    userId: d.donorId || d.userId,
+    donorId: d.donorId || d.userId,
+    donationNeedId: d.donationNeedId,
+    itemType: d.itemType?.name || d.itemType || "Hàng cứu trợ",
+    unit: d.unit?.name || d.unit || "phần",
+    quantity: isNaN(quantity) ? 0 : quantity,
+    receivedQuantity: isNaN(receivedQuantity) ? 0 : receivedQuantity,
+    status: d.status,
+    note: d.notes || d.note,
+    batchId: d.batchId,
+    receivedAt: d.receivedAt,
+    receivedById: d.receivedById || d.receivedBy,
+    rejectionReason: d.status === "REJECTED" ? d.notes : undefined,
+    photoUrl: d.photoUrl,
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
+    donor: d.donor
+      ? {
+          id: d.donor.id,
+          name: d.donor.fullName || d.donor.name || "Nhà hảo tâm",
+          fullName: d.donor.fullName || d.donor.name || "Nhà hảo tâm",
+          email: d.donor.email || "",
+          phone: d.donor.phoneNumber || "",
+          systemRole: "USER",
+          isActive: true,
+          status: "ACTIVE",
+          createdAt: d.createdAt,
+        }
+      : undefined,
+    event: d.event,
+    batch: d.batch,
   };
 }
 
 export const donationService = {
+  /**
+   * Lấy danh sách nhu cầu cứu trợ của sự kiện từ BE
+   */
   async getNeedsByEvent(eventId: string): Promise<DonationNeed[]> {
-    await delay(150);
-    const db = storageService.getDb();
-    return db.donationNeeds.filter((n) => n.eventId === eventId);
+    const list = await apiClient.get<any, any[]>(`/events/${eventId}/donation-needs`);
+    if (!Array.isArray(list)) return [];
+    return list.map((n) => {
+      const target =
+        typeof n.targetQuantity === "object"
+          ? n.targetQuantity?.toNumber?.() ?? Number(n.targetQuantity)
+          : Number(n.targetQuantity);
+      return {
+        id: n.id,
+        eventId: n.eventId || eventId,
+        itemTypeId: n.itemTypeId,
+        unitId: n.unitId,
+        itemType: n.itemType?.name || n.itemType || "Hàng cứu trợ",
+        unit: n.unit?.name || n.unit || "phần",
+        targetQuantity: isNaN(target) ? 0 : target,
+        pledgedQuantity: Number(n.pledgedQuantity || 0),
+        receivedQuantity: Number(n.receivedQuantity || 0),
+        distributedQuantity: Number(n.distributedQuantity || 0),
+        notes: n.notes,
+      };
+    });
   },
 
+  /**
+   * Lấy lịch sử quyên góp của bản thân từ BE
+   */
   async getByUser(userId: string): Promise<EnrichedDonation[]> {
-    try {
-      const res = await apiClient.get<any, any>("/donations/my");
-      if (res && Array.isArray(res.items)) {
-        return res.items.map((d: any) => ({
-          ...d,
-          userId: d.donorId,
-          donorId: d.donorId,
-          itemType: d.itemType?.name || d.itemType || "Hàng cứu trợ",
-          unit: d.unit?.name || d.unit || "phần",
-          event: d.event,
-        }));
-      }
-    } catch {
-      // Fallback
-    }
-
-    await delay(200);
-    const db = storageService.getDb();
-    return db.donations
-      .filter((d) => d.userId === userId)
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      .map(enrichDonation);
+    const res = await apiClient.get<any, any>("/donations/my");
+    const items = Array.isArray(res) ? res : res?.items || [];
+    return items.map(mapBeDonationToEnriched);
   },
 
+  /**
+   * Ban tổ chức lấy danh sách quyên góp theo sự kiện từ BE
+   */
   async getByEvent(eventId: string): Promise<EnrichedDonation[]> {
-    try {
-      const res = await apiClient.get<any, any>(`/donations/event/${eventId}`);
-      if (res && Array.isArray(res.items)) {
-        return res.items.map((d: any) => ({
-          ...d,
-          userId: d.donorId,
-          donorId: d.donorId,
-          itemType: d.itemType?.name || d.itemType || "Hàng cứu trợ",
-          unit: d.unit?.name || d.unit || "phần",
-          donor: d.donor,
-        }));
-      }
-    } catch {
-      // Fallback
-    }
-
-    await delay(200);
-    const db = storageService.getDb();
-    return db.donations
-      .filter((d) => d.eventId === eventId)
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      .map(enrichDonation);
+    const res = await apiClient.get<any, any>(`/donations/event/${eventId}`);
+    const items = Array.isArray(res) ? res : res?.items || [];
+    return items.map(mapBeDonationToEnriched);
   },
 
   async getByOrganization(
     organizationId?: string,
     eventId?: string
   ): Promise<EnrichedDonation[]> {
-    await delay(220);
-    const db = storageService.getDb();
-    const orgEventIds =
-      organizationId && organizationId !== "ALL"
-        ? db.events
-            .filter((e) => e.organizationId === organizationId)
-            .map((e) => e.id)
-        : db.events.map((e) => e.id);
-
-    return db.donations
-      .filter(
-        (d) =>
-          orgEventIds.includes(d.eventId) &&
-          (!eventId || eventId === "ALL" || d.eventId === eventId)
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      .map(enrichDonation);
+    if (eventId && eventId !== "ALL") {
+      return this.getByEvent(eventId);
+    }
+    return [];
   },
 
+  /**
+   * Tạo phiếu quyên góp mới qua BE (POST /api/donations)
+   */
   async create(
     payload: {
       eventId: string;
@@ -144,305 +131,56 @@ export const donationService = {
       note?: string;
       photoUrl?: string;
     },
-    actor: User
+    donor: User
   ): Promise<EnrichedDonation> {
-    try {
-      const beDonation = await apiClient.post<any, any>("/donations", {
-        donationNeedId: payload.donationNeedId,
-        quantity: Number(payload.quantity),
-      });
-      if (beDonation) {
-        return {
-          ...beDonation,
-          userId: actor.id,
-          donorId: actor.id,
-          itemType: beDonation.itemType?.name || beDonation.itemType || "Hàng cứu trợ",
-          unit: beDonation.unit?.name || beDonation.unit || "phần",
-          donor: actor,
-        };
-      }
-    } catch {
-      // Fallback
-    }
-
-    await delay(280);
-    const db = storageService.getDb();
-    const event = db.events.find((e) => e.id === payload.eventId);
-    if (!event) throw new Error("Event not found.");
-    if (event.status !== "PUBLISHED") {
-      throw new Error(
-        `Cannot donate to an event with status ${event.status}. Only PUBLISHED events accept donations.`
-      );
-    }
-
-    const needIdx = db.donationNeeds.findIndex(
-      (n) => n.id === payload.donationNeedId && n.eventId === payload.eventId
-    );
-    if (needIdx === -1) {
-      throw new Error("Selected donation need does not belong to this event.");
-    }
-
-    const qty = Number(payload.quantity);
-    if (!qty || qty <= 0) {
-      throw new Error("Donation quantity must be a positive number.");
-    }
-
-    const need = db.donationNeeds[needIdx];
-    const existingTrackingIds = db.donations.map((d) => d.trackingId);
-    const trackingId = generateTrackingId(existingTrackingIds);
-    const now = new Date().toISOString();
-
-    const newDonation: Donation = {
-      id: generateId("don"),
-      trackingId,
+    const res = await apiClient.post<any, any>("/donations", {
       eventId: payload.eventId,
-      userId: actor.id,
-      donationNeedId: need.id,
-      itemType: need.itemType,
-      unit: need.unit,
-      quantity: qty,
-      note: payload.note?.trim(),
-      photoUrl: payload.photoUrl?.trim(),
-      status: "PENDING",
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    db.donations.unshift(newDonation);
-    db.donationNeeds[needIdx].pledgedQuantity += qty;
-
-    storageService.addLog(db, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actorRole: "DONOR",
-      action: "DONATION_REGISTERED",
-      description: `Registered in-kind donation of ${qty} ${need.unit} ${need.itemType} (Tracking ID: ${trackingId}) for '${event.title}'.`,
-      newStatus: "PENDING",
-      entityType: "DONATION",
-      entityId: newDonation.id,
-      eventId: event.id,
-      donationId: newDonation.id,
+      donationNeedId: payload.donationNeedId,
+      quantity: Number(payload.quantity),
+      notes: payload.note?.trim(),
     });
 
-    storageService.saveDb(db);
-    return enrichDonation(newDonation);
+    return mapBeDonationToEnriched(res);
   },
 
+  /**
+   * Xác nhận tiếp nhận hiện vật vào kho qua BE (PATCH /api/donations/:id/receipt)
+   */
   async confirmReceived(
     donationId: string,
     actor: User
   ): Promise<EnrichedDonation> {
-    try {
-      await apiClient.patch(`/donations/${donationId}/receipt`, {
-        status: "RECEIVED",
-      });
-    } catch {
-      // Fallback
-    }
-
-    await delay(260);
-    const db = storageService.getDb();
-    const idx = db.donations.findIndex((d) => d.id === donationId);
-    if (idx === -1) throw new Error("Donation not found.");
-
-    const donation = db.donations[idx];
-    const event = db.events.find((e) => e.id === donation.eventId);
-    if (!event) throw new Error("Associated event not found.");
-
-    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
-    authService.assertOrganizerAccess(actor, event.organizationId);
-
-    if (donation.status !== "PENDING") {
-      throw new Error(
-        `Invalid status transition: Cannot confirm receipt for a donation in ${donation.status} status.`
-      );
-    }
-
-    const now = new Date().toISOString();
-    const oldStatus = donation.status;
-    db.donations[idx].status = "RECEIVED";
-    db.donations[idx].updatedAt = now;
-
-    // Update DonationNeed receivedQuantity
-    const needIdx = db.donationNeeds.findIndex(
-      (n) => n.id === donation.donationNeedId
-    );
-    if (needIdx !== -1) {
-      db.donationNeeds[needIdx].receivedQuantity += donation.quantity;
-    }
-
-    // Update or create InventoryItem (Available += quantity, Received += quantity)
-    const invIdx = db.inventory.findIndex(
-      (inv) =>
-        inv.eventId === donation.eventId &&
-        inv.itemType.toLowerCase() === donation.itemType.toLowerCase() &&
-        inv.unit.toLowerCase() === donation.unit.toLowerCase()
-    );
-
-    if (invIdx !== -1) {
-      db.inventory[invIdx].received += donation.quantity;
-      db.inventory[invIdx].available += donation.quantity;
-      db.inventory[invIdx].updatedAt = now;
-      verifyInventoryEquation(db.inventory[invIdx]);
-    } else {
-      const newInv: InventoryItem = {
-        id: generateId("inv"),
-        eventId: donation.eventId,
-        organizationId: event.organizationId,
-        itemType: donation.itemType,
-        unit: donation.unit,
-        received: donation.quantity,
-        available: donation.quantity,
-        reserved: 0,
-        distributed: 0,
-        lostWrittenOff: 0,
-        notes: `Added from confirmed donation ${donation.trackingId}.`,
-        updatedAt: now,
-      };
-      verifyInventoryEquation(newInv);
-      db.inventory.push(newInv);
-    }
-
-    storageService.addLog(db, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actorRole: "ORGANIZER",
-      action: "DONATION_RECEIVED",
-      description: `Confirmed receipt of ${donation.quantity} ${donation.unit} ${donation.itemType} (${donation.trackingId}). Added to Available warehouse inventory.`,
-      oldStatus,
-      newStatus: "RECEIVED",
-      entityType: "DONATION",
-      entityId: donation.id,
-      eventId: donation.eventId,
-      donationId: donation.id,
+    const updated = await apiClient.patch<any, any>(`/donations/${donationId}/receipt`, {
+      status: "RECEIVED",
     });
 
-    storageService.saveDb(db);
-    return enrichDonation(db.donations[idx]);
+    return mapBeDonationToEnriched(updated);
   },
 
+  /**
+   * Từ chối tiếp nhận hiện vật qua BE (PATCH /api/donations/:id/receipt)
+   */
   async rejectDonation(
     donationId: string,
     actor: User,
     reason?: string
   ): Promise<EnrichedDonation> {
-    try {
-      await apiClient.patch(`/donations/${donationId}/receipt`, {
-        status: "REJECTED",
-        rejectionReason: reason || "Không đạt tiêu chuẩn kiểm định",
-      });
-    } catch {
-      // Fallback
-    }
-
-    await delay(250);
-    const db = storageService.getDb();
-    const idx = db.donations.findIndex((d) => d.id === donationId);
-    if (idx === -1) throw new Error("Donation not found.");
-
-    const donation = db.donations[idx];
-    const event = db.events.find((e) => e.id === donation.eventId);
-    if (!event) throw new Error("Associated event not found.");
-
-    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
-    authService.assertOrganizerAccess(actor, event.organizationId);
-
-    if (donation.status !== "PENDING") {
-      throw new Error(
-        `Invalid status transition: Only PENDING donations can be rejected (Current: ${donation.status}).`
-      );
-    }
-
-    const oldStatus = donation.status;
-    db.donations[idx].status = "REJECTED";
-    db.donations[idx].updatedAt = new Date().toISOString();
-    if (reason && reason.trim()) {
-      db.donations[idx].note = `${donation.note ? `${donation.note} | ` : ""}Lý do từ chối: ${reason.trim()}`;
-    }
-
-    // Reduce pledgedQuantity since rejected/cancelled pledges do not count toward Pledged
-    const needIdx = db.donationNeeds.findIndex(
-      (n) => n.id === donation.donationNeedId
-    );
-    if (needIdx !== -1) {
-      db.donationNeeds[needIdx].pledgedQuantity = Math.max(
-        0,
-        db.donationNeeds[needIdx].pledgedQuantity - donation.quantity
-      );
-    }
-
-    storageService.addLog(db, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actorRole: "ORGANIZER",
-      action: "DONATION_REJECTED",
-      description: `Marked donation ${donation.trackingId} (${donation.quantity} ${donation.unit} ${donation.itemType}) as REJECTED / not received.${reason ? ` Lý do: ${reason.trim()}` : ""}`,
-      oldStatus,
-      newStatus: "REJECTED",
-      entityType: "DONATION",
-      entityId: donation.id,
-      eventId: donation.eventId,
-      donationId: donation.id,
+    const updated = await apiClient.patch<any, any>(`/donations/${donationId}/receipt`, {
+      status: "REJECTED",
+      notes: reason?.trim() || "Không đúng tiêu chuẩn quyên góp",
     });
 
-    storageService.saveDb(db);
-    return enrichDonation(db.donations[idx]);
+    return mapBeDonationToEnriched(updated);
   },
 
+  /**
+   * Người dùng hủy quyên góp khi còn PENDING qua BE (POST /api/donations/:id/cancel)
+   */
   async cancelMyDonation(
     donationId: string,
     actor: User
   ): Promise<EnrichedDonation> {
-    try {
-      await apiClient.post(`/donations/${donationId}/cancel`);
-    } catch {
-      // Fallback
-    }
-
-    await delay(220);
-    const db = storageService.getDb();
-    const idx = db.donations.findIndex((d) => d.id === donationId);
-    if (idx === -1) throw new Error("Donation not found.");
-
-    const donation = db.donations[idx];
-    if (donation.userId !== actor.id) {
-      throw new Error("You can only cancel your own donation.");
-    }
-    if (donation.status !== "PENDING") {
-      throw new Error(
-        `Cannot cancel a donation that is already ${donation.status}.`
-      );
-    }
-
-    const oldStatus = donation.status;
-    db.donations[idx].status = "CANCELLED";
-    db.donations[idx].updatedAt = new Date().toISOString();
-
-    const needIdx = db.donationNeeds.findIndex(
-      (n) => n.id === donation.donationNeedId
-    );
-    if (needIdx !== -1) {
-      db.donationNeeds[needIdx].pledgedQuantity = Math.max(
-        0,
-        db.donationNeeds[needIdx].pledgedQuantity - donation.quantity
-      );
-    }
-
-    storageService.addLog(db, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actorRole: "DONOR",
-      action: "DONATION_CANCELLED",
-      description: `Donor cancelled pending donation ${donation.trackingId} (${donation.quantity} ${donation.unit} ${donation.itemType}).`,
-      oldStatus,
-      newStatus: "CANCELLED",
-      entityType: "DONATION",
-      entityId: donation.id,
-      eventId: donation.eventId,
-      donationId: donation.id,
-    });
-
-    storageService.saveDb(db);
-    return enrichDonation(db.donations[idx]);
+    const updated = await apiClient.post<any, any>(`/donations/${donationId}/cancel`);
+    return mapBeDonationToEnriched(updated);
   },
 };

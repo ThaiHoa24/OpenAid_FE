@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { ShieldCheck, Users, Truck, Clock } from "lucide-react";
-import { storageService } from "@/services/storageService";
+import { eventService } from "@/services/eventService";
 
 export function StatsBar() {
   const [stats, setStats] = useState({
@@ -13,18 +13,25 @@ export function StatsBar() {
   });
 
   useEffect(() => {
-    const db = storageService.getDb();
-    const publishedEvents = db.events.filter((e) => e.status === "PUBLISHED").length;
-    const approvedVolunteers = db.volunteerApplications.filter((a) => a.status === "APPROVED").length;
-    const donationsCount = db.donations.length;
-    const distributedKg = db.batches.reduce((sum, b) => sum + (b.distributedQuantity || 0), 0);
+    let isMounted = true;
+    eventService
+      .getAll({ status: "PUBLISHED" })
+      .then((events) => {
+        if (!isMounted) return;
+        if (Array.isArray(events) && events.length > 0) {
+          setStats((prev) => ({
+            ...prev,
+            totalEvents: events.length,
+          }));
+        }
+      })
+      .catch(() => {
+        // Fallback to baseline default display values
+      });
 
-    setStats({
-      totalEvents: publishedEvents || 18,
-      totalVolunteers: approvedVolunteers > 0 ? approvedVolunteers + 1200 : 1250,
-      totalDonations: donationsCount > 0 ? donationsCount + 8000 : 8400,
-      totalDistributedKg: distributedKg > 0 ? distributedKg + 35000 : 38500,
-    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

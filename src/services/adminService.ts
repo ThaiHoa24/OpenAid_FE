@@ -1,4 +1,3 @@
-import { storageService } from "./storageService";
 import apiClient from "@/lib/api/axiosClient";
 import type {
   Organization,
@@ -6,14 +5,13 @@ import type {
   User,
   UserStatus,
 } from "@/types";
-import { delay } from "@/utils";
 
 export interface EnrichedUser extends User {
   organizations: {
     id: string;
     name: string;
     role: string;
-    status: OrganizationStatus;
+    status: string;
   }[];
   volunteerApplicationsCount: number;
   donationsCount: number;
@@ -27,65 +25,70 @@ export interface EnrichedOrganization extends Organization {
 
 export const adminService = {
   async getPlatformStats() {
-    await delay(180);
-    const db = storageService.getDb();
-    return {
-      totalUsers: db.users.length,
-      activeUsers: db.users.filter((u) => u.status === "ACTIVE").length,
-      totalOrganizations: db.organizations.length,
-      pendingOrganizations: db.organizations.filter(
-        (o) => o.status === "PENDING"
-      ).length,
-      approvedOrganizations: db.organizations.filter(
-        (o) => o.status === "APPROVED"
-      ).length,
-      disabledOrganizations: db.organizations.filter(
-        (o) => o.status === "DISABLED"
-      ).length,
-      totalEvents: db.events.length,
-      publishedEvents: db.events.filter((e) => e.status === "PUBLISHED").length,
-      totalDonations: db.donations.length,
-      totalBatches: db.batches.length,
-      totalTrips: db.trips.length,
-      totalLogs: db.transparencyLogs.length,
-    };
+    try {
+      const [usersRes, orgsRes, eventsRes, logsRes] = await Promise.all([
+        apiClient.get<any, any>("/admin/users"),
+        apiClient.get<any, any>("/organizations"),
+        apiClient.get<any, any>("/events"),
+        apiClient.get<any, any>("/transparency/logs"),
+      ]);
+      const users = Array.isArray(usersRes) ? usersRes : usersRes?.items || [];
+      const orgs = Array.isArray(orgsRes) ? orgsRes : orgsRes?.items || [];
+      const events = Array.isArray(eventsRes) ? eventsRes : eventsRes?.items || [];
+      const logs = Array.isArray(logsRes) ? logsRes : logsRes?.items || [];
+      return {
+        totalUsers: users.length,
+        activeUsers: users.filter((u: any) => u.isActive !== false).length,
+        totalOrganizations: orgs.length,
+        verifiedOrganizations: orgs.filter((o: any) => o.status === "APPROVED").length,
+        pendingOrganizations: orgs.filter((o: any) => o.status === "PENDING").length,
+        totalEvents: events.length,
+        publishedEvents: events.filter((e: any) => e.status === "PUBLISHED").length,
+        totalLogs: logs.length,
+      };
+    } catch {
+      return {
+        totalUsers: 0,
+        activeUsers: 0,
+        totalOrganizations: 0,
+        verifiedOrganizations: 0,
+        pendingOrganizations: 0,
+        totalEvents: 0,
+        publishedEvents: 0,
+        totalLogs: 0,
+      };
+    }
   },
 
+  /**
+   * Lấy danh sách toàn bộ người dùng từ BE (GET /api/admin/users)
+   */
   async getAllUsers(search?: string, statusFilter?: string): Promise<EnrichedUser[]> {
-    try {
-      const res = await apiClient.get<any, any>("/admin/users");
-      const items = Array.isArray(res) ? res : res?.items;
-      if (Array.isArray(items)) {
-        return items.map((u: any) => ({
-          id: u.id,
-          name: u.fullName || u.name || "",
-          fullName: u.fullName || u.name || "",
-          email: u.email,
-          phone: u.phoneNumber || u.phone || "",
-          phoneNumber: u.phoneNumber || u.phone || "",
-          systemRole: u.systemRole,
-          status: (u.isActive !== false && u.status !== "DISABLED" ? "ACTIVE" : "DISABLED") as UserStatus,
-          isActive: u.isActive !== false,
-          createdAt: u.createdAt || new Date().toISOString(),
-          organizations: Array.isArray(u.memberships)
-            ? u.memberships.map((m: any) => ({
-                id: m.organization?.id || m.organizationId,
-                name: m.organization?.name || "",
-                role: m.role,
-                status: m.organization?.status || "APPROVED",
-              }))
-            : [],
-          volunteerApplicationsCount: u.volunteerApplications?.length ?? 0,
-          donationsCount: u.donations?.length ?? 0,
-        }));
-      }
-    } catch {
-      // Fallback
-    }
+    const res = await apiClient.get<any, any>("/admin/users");
+    const items = Array.isArray(res) ? res : res?.items || [];
 
-    await delay(200);
-    const db = storageService.getDb();
-    let list = db.users.slice();
+    let list: EnrichedUser[] = items.map((u: any) => ({
+      id: u.id,
+      name: u.fullName || u.name || "",
+      fullName: u.fullName || u.name || "",
+      email: u.email,
+      phone: u.phoneNumber || u.phone || "",
+      phoneNumber: u.phoneNumber || u.phone || "",
+      systemRole: u.systemRole,
+      status: (u.isActive !== false && u.status !== "DISABLED" ? "ACTIVE" : "DISABLED") as UserStatus,
+      isActive: u.isActive !== false,
+      createdAt: u.createdAt || new Date().toISOString(),
+      organizations: Array.isArray(u.memberships)
+        ? u.memberships.map((m: any) => ({
+            id: m.organization?.id || m.organizationId,
+            name: m.organization?.name || "",
+            role: m.role,
+            status: m.organization?.status || "APPROVED",
+          }))
+        : [],
+      volunteerApplicationsCount: u.volunteerApplications?.length ?? 0,
+      donationsCount: u.donations?.length ?? 0,
+    }));
 
     if (search && search.trim()) {
       const q = search.trim().toLowerCase();
@@ -101,105 +104,61 @@ export const adminService = {
       list = list.filter((u) => u.status === statusFilter);
     }
 
-    return list.map((u) => {
-      const memberships = db.organizationMembers.filter(
-        (m) => m.userId === u.id
-      );
-      const organizations = memberships
-        .map((m) => {
-          const org = db.organizations.find((o) => o.id === m.organizationId);
-          return org
-            ? {
-                id: org.id,
-                name: org.name,
-                role: m.role,
-                status: org.status,
-              }
-            : null;
-        })
-        .filter((x): x is NonNullable<typeof x> => x !== null);
-
-      const volunteerApplicationsCount = db.volunteerApplications.filter(
-        (a) => a.userId === u.id
-      ).length;
-      const donationsCount = db.donations.filter(
-        (d) => d.userId === u.id
-      ).length;
-
-      return {
-        ...u,
-        organizations,
-        volunteerApplicationsCount,
-        donationsCount,
-      };
-    });
+    return list;
   },
 
+  /**
+   * Khóa hoặc mở khóa người dùng qua BE (PATCH /api/admin/users/:id/active)
+   */
   async updateUserStatus(
     userId: string,
     nextStatus: UserStatus,
     actor: User
   ): Promise<User> {
-    try {
-      const res = await apiClient.patch<any, any>(`/admin/users/${userId}/active`, {
-        isActive: nextStatus === "ACTIVE",
-      });
-      if (res && res.id) {
-        return {
-          id: res.id,
-          name: res.fullName || res.name || "",
-          fullName: res.fullName || res.name || "",
-          email: res.email,
-          phone: res.phoneNumber || res.phone || "",
-          phoneNumber: res.phoneNumber || res.phone || "",
-          systemRole: res.systemRole,
-          status: (res.isActive ? "ACTIVE" : "DISABLED") as UserStatus,
-          isActive: res.isActive,
-          createdAt: res.createdAt,
-        };
-      }
-    } catch (err: any) {
-      if (err?.response?.data?.message) {
-        throw new Error(err.response.data.message);
-      }
-      // Fallback
-    }
-
-    await delay(220);
-    const db = storageService.getDb();
-    const idx = db.users.findIndex((u) => u.id === userId);
-    if (idx === -1) throw new Error("User not found.");
-
-    if (db.users[idx].id === actor.id && nextStatus === "DISABLED") {
-      throw new Error("You cannot disable your own Admin account.");
-    }
-
-    const oldStatus = db.users[idx].status;
-    db.users[idx].status = nextStatus;
-
-    storageService.addLog(db, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actorRole: "ADMIN",
-      action: `USER_${nextStatus}`,
-      description: `Admin updated user '${db.users[idx].name}' (${db.users[idx].email}) status from ${oldStatus} to ${nextStatus}.`,
-      oldStatus,
-      newStatus: nextStatus,
-      entityType: "ORGANIZATION",
-      entityId: userId,
+    const res = await apiClient.patch<any, any>(`/admin/users/${userId}/active`, {
+      isActive: nextStatus === "ACTIVE",
     });
 
-    storageService.saveDb(db);
-    return db.users[idx];
+    return {
+      id: res.id,
+      name: res.fullName || res.name || "",
+      fullName: res.fullName || res.name || "",
+      email: res.email,
+      phone: res.phoneNumber || res.phone || "",
+      phoneNumber: res.phoneNumber || res.phone || "",
+      systemRole: res.systemRole,
+      status: (res.isActive ? "ACTIVE" : "DISABLED") as UserStatus,
+      isActive: res.isActive,
+      createdAt: res.createdAt,
+    };
   },
 
+  /**
+   * Lấy danh sách tổ chức từ BE (GET /api/organizations)
+   */
   async getAllOrganizations(
     statusFilter?: string,
     search?: string
   ): Promise<EnrichedOrganization[]> {
-    await delay(200);
-    const db = storageService.getDb();
-    let list = db.organizations.slice();
+    const res = await apiClient.get<any, any>("/organizations");
+    const items = Array.isArray(res) ? res : res?.items || [];
+
+    let list: EnrichedOrganization[] = items.map((o: any) => ({
+      id: o.id,
+      code: o.code,
+      name: o.name,
+      description: o.description || "",
+      email: o.email || "",
+      contactEmail: o.email || "",
+      phoneNumber: o.phoneNumber || "",
+      contactPhone: o.phoneNumber || "",
+      address: o.address || "",
+      status: o.status,
+      createdAt: o.createdAt,
+      membersCount: o._count?.members ?? o.membersCount ?? 1,
+      organizers: o.organizers || [],
+      eventsCount: o._count?.events ?? o.eventsCount ?? 0,
+    }));
 
     if (statusFilter && statusFilter !== "ALL") {
       list = list.filter((o) => o.status === statusFilter);
@@ -214,196 +173,39 @@ export const adminService = {
       );
     }
 
-    return list.map((o) => {
-      const members = db.organizationMembers.filter(
-        (m) => m.organizationId === o.id
-      );
-      const organizers = members
-        .filter((m) => m.role === "ORGANIZER")
-        .map((m) => db.users.find((u) => u.id === m.userId))
-        .filter((u): u is User => u !== undefined);
-      const eventsCount = db.events.filter(
-        (e) => e.organizationId === o.id
-      ).length;
-
-      return {
-        ...o,
-        membersCount: members.length,
-        organizers,
-        eventsCount,
-      };
-    });
+    return list;
   },
 
+  /**
+   * Xét duyệt tổ chức từ thiện qua BE (PATCH /api/admin/organizations/:id/review)
+   */
   async updateOrganizationStatus(
     orgId: string,
     nextStatus: OrganizationStatus,
     actor: User
   ): Promise<Organization> {
-    try {
-      const res = await apiClient.patch<any, any>(
-        `/admin/organizations/${orgId}/review`,
-        {
-          status: nextStatus,
-        }
-      );
-      if (res && res.id) {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new Event("openaid-auth-changed"));
-        }
-        return res;
+    const res = await apiClient.patch<any, any>(
+      `/admin/organizations/${orgId}/review`,
+      {
+        status: nextStatus,
       }
-    } catch (err: any) {
-      if (err?.response?.data?.message) {
-        throw new Error(err.response.data.message);
-      }
-      // Fallback
-    }
+    );
 
-    await delay(250);
-    const db = storageService.getDb();
-    const idx = db.organizations.findIndex((o) => o.id === orgId);
-    if (idx === -1) throw new Error("Organization not found.");
-
-    const oldStatus = db.organizations[idx].status;
-    db.organizations[idx].status = nextStatus;
-    if (nextStatus === "APPROVED") {
-      db.organizations[idx].verifiedAt = new Date().toISOString();
-    }
-
-    storageService.addLog(db, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actorRole: "ADMIN",
-      action: `ORGANIZATION_${nextStatus}`,
-      description: `Platform Admin updated organization '${db.organizations[idx].name}' status from ${oldStatus} to ${nextStatus}.`,
-      oldStatus,
-      newStatus: nextStatus,
-      entityType: "ORGANIZATION",
-      entityId: orgId,
-    });
-
-    storageService.saveDb(db);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("openaid-auth-changed"));
     }
-    return db.organizations[idx];
+    return res;
   },
 
   async getOrganizerDashboardSummary(
     organizationId?: string,
     eventId?: string
   ) {
-    await delay(220);
-    const db = storageService.getDb();
-    const events = db.events.filter(
-      (e) =>
-        (!organizationId ||
-          organizationId === "ALL" ||
-          e.organizationId === organizationId) &&
-        (!eventId || eventId === "ALL" || e.id === eventId)
-    );
-    const eventIds = events.map((e) => e.id);
-
-    const applications = db.volunteerApplications.filter((a) =>
-      eventIds.includes(a.eventId)
-    );
-    const donations = db.donations.filter((d) => eventIds.includes(d.eventId));
-    const batches = db.batches.filter((b) => eventIds.includes(b.eventId));
-    const trips = db.trips.filter((t) => eventIds.includes(t.eventId));
-    const needs = db.donationNeeds.filter((n) => eventIds.includes(n.eventId));
-    const inventory = db.inventory.filter((i) => eventIds.includes(i.eventId));
-    const evidences = db.evidences.filter((ev) => eventIds.includes(ev.eventId));
-
-    // Group metrics by itemType + unit
-    const metricsMap = new Map<
-      string,
-      {
-        itemType: string;
-        unit: string;
-        needed: number;
-        pledged: number;
-        received: number;
-        distributed: number;
-        available: number;
-        reserved: number;
-        lost: number;
-      }
-    >();
-
-    for (const n of needs) {
-      const key = `${n.itemType}|${n.unit}`;
-      const existing = metricsMap.get(key) || {
-        itemType: n.itemType,
-        unit: n.unit,
-        needed: 0,
-        pledged: 0,
-        received: 0,
-        distributed: 0,
-        available: 0,
-        reserved: 0,
-        lost: 0,
-      };
-      existing.needed += n.targetQuantity;
-      existing.pledged += n.pledgedQuantity;
-      existing.received += n.receivedQuantity;
-      existing.distributed += n.distributedQuantity;
-      metricsMap.set(key, existing);
-    }
-
-    for (const inv of inventory) {
-      const key = `${inv.itemType}|${inv.unit}`;
-      const existing = metricsMap.get(key) || {
-        itemType: inv.itemType,
-        unit: inv.unit,
-        needed: 0,
-        pledged: 0,
-        received: inv.received,
-        distributed: inv.distributed,
-        available: 0,
-        reserved: 0,
-        lost: 0,
-      };
-      existing.available += inv.available;
-      existing.reserved += inv.reserved;
-      existing.lost += inv.lostWrittenOff;
-      metricsMap.set(key, existing);
-    }
-
     return {
-      eventsCount: events.length,
-      publishedEventsCount: events.filter((e) => e.status === "PUBLISHED")
-        .length,
-      volunteersTotal: applications.length,
-      volunteersApproved: applications.filter((a) => a.status === "APPROVED")
-        .length,
-      volunteersPending: applications.filter((a) => a.status === "PENDING")
-        .length,
-      volunteersCheckedIn: applications.filter((a) => Boolean(a.checkedInAt))
-        .length,
-      donationsTotal: donations.length,
-      donationsPending: donations.filter((d) => d.status === "PENDING").length,
-      donationsReceived: donations.filter(
-        (d) =>
-          d.status === "RECEIVED" ||
-          d.status === "IN_BATCH" ||
-          d.status === "DISTRIBUTED"
-      ).length,
-      batchesTotal: batches.length,
-      batchesReady: batches.filter((b) => b.status === "READY").length,
-      batchesAssigned: batches.filter((b) => b.status === "ASSIGNED").length,
-      batchesDistributed: batches.filter((b) => b.status === "DISTRIBUTED")
-        .length,
-      tripsTotal: trips.length,
-      tripsCompleted: trips.filter((t) => t.status === "COMPLETED").length,
-      tripsInTransit: trips.filter((t) => t.status === "IN_TRANSIT").length,
-      evidencesPendingReview: evidences.filter(
-        (ev) => ev.status === "PENDING_REVIEW"
-      ).length,
-      evidencesApprovedPublic: evidences.filter(
-        (ev) => ev.status === "APPROVED_PUBLIC"
-      ).length,
-      itemMetrics: Array.from(metricsMap.values()),
+      activeVolunteers: 0,
+      totalDonationsReceived: 0,
+      activeTrips: 0,
+      inventoryCount: 0,
     };
   },
 };

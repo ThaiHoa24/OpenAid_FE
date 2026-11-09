@@ -41,7 +41,9 @@ apiClient.interceptors.response.use(
   (error: AxiosError<{ success?: boolean; message?: string | string[]; statusCode?: number }>) => {
     let errorMessage = "Đã có lỗi xảy ra. Vui lòng thử lại.";
 
-    if (error.response?.data?.message) {
+    if (error.code === "ERR_NETWORK" || error.message?.includes("Network Error")) {
+      errorMessage = `Không thể kết nối đến máy chủ Backend (${API_BASE_URL}). Vui lòng đảm bảo Backend đang chạy.`;
+    } else if (error.response?.data?.message) {
       const msg = error.response.data.message;
       if (Array.isArray(msg)) {
         errorMessage = msg.join("; ");

@@ -16,7 +16,6 @@ import {
   Filter,
   Users,
   CheckCheck,
-  Trash2,
   AlertCircle,
   Copy,
   Check,
@@ -50,7 +49,6 @@ export default function MyActivitiesPage() {
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedCode, setCopiedCode] = useState(false);
-  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [selectedDetailApp, setSelectedDetailApp] = useState<any | null>(null);
   const [detailModalTab, setDetailModalTab] = useState<"route" | "batches" | "volunteers" | "guidelines">("route");
 
@@ -99,18 +97,6 @@ export default function MyActivitiesPage() {
       loadData();
     } catch (err: any) {
       showToast(err.message || "Lỗi khi điểm danh", "error");
-    }
-  };
-
-  const handleWithdraw = async (appId: string) => {
-    if (!user) return;
-    try {
-      await volunteerService.withdrawApplication(appId, user);
-      showToast("Đã rút đơn đăng ký tình nguyện viên thành công", "info");
-      setWithdrawingId(null);
-      loadData();
-    } catch (err: any) {
-      showToast(err.message || "Không thể rút đơn", "error");
     }
   };
 
@@ -448,18 +434,10 @@ export default function MyActivitiesPage() {
                         <button
                           type="button"
                           onClick={() => setSelectedDetailApp(app)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition cursor-pointer"
                         >
                           <Eye className="w-3.5 h-3.5 text-slate-500" />
                           <span>Chi tiết</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setWithdrawingId(app.id)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Rút đơn</span>
                         </button>
                       </div>
                     </>
@@ -510,41 +488,6 @@ export default function MyActivitiesPage() {
               </div>
               );
             })}
-          </div>
-        )}
-
-        {/* Withdraw Confirmation Modal */}
-        {withdrawingId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn">
-            <div className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl border border-slate-200">
-              <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-                <AlertCircle className="w-6 h-6" />
-              </div>
-              <div className="text-center space-y-1">
-                <h3 className="text-sm font-bold text-slate-900">
-                  Xác nhận rút đơn đăng ký?
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Hồ sơ ứng tuyển của bạn sẽ được gỡ khỏi danh sách chờ của Ban tổ chức. Bạn vẫn có thể đăng ký lại sau.
-                </p>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setWithdrawingId(null)}
-                  className="flex-1 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleWithdraw(withdrawingId)}
-                  className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition cursor-pointer"
-                >
-                  Rút đơn
-                </button>
-              </div>
-            </div>
           </div>
         )}
 

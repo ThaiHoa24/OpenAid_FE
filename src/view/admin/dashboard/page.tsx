@@ -241,28 +241,23 @@ export default function AdminDashboardPage() {
               </div>
             </Link>
 
-            {/* Card 4: Hiện vật & Vận đơn */}
+            {/* Card 4: Nhật ký kiểm toán minh bạch (FR20) */}
             <Link
-              href="/organizer/dashboard"
+              href="/track"
               className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-teal-300 hover:shadow-sm transition-all group flex flex-col justify-between"
             >
               <div className="flex items-center justify-between text-slate-500 text-xs font-medium mb-2">
-                <span>{t("admin.dashboard.statGoodsTrips")}</span>
+                <span>Nhật ký kiểm toán</span>
                 <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <Package className="w-4 h-4" />
+                  <History className="w-4 h-4" />
                 </div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-slate-900">
-                  {stats.totalDonations}
+                  {stats.totalLogs}
                 </div>
                 <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-                  <span>
-                    {t("admin.dashboard.statBatchesTripsCount", {
-                      batches: stats.totalBatches,
-                      trips: stats.totalTrips,
-                    })}
-                  </span>
+                  <span>Bản ghi trạng thái bất biến</span>
                   <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-700 transition-colors" />
                 </div>
               </div>

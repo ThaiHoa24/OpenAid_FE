@@ -6,12 +6,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useTranslation } from "@/hooks/useTranslation";
 import { eventService, type EnrichedEvent, type CreateEventInput } from "@/services/eventService";
+import { uploadService } from "@/services/uploadService";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SUPPORT_CATEGORIES } from "@/constants";
 import { 
   Calendar, Plus, Trash2, Globe, 
   Ban, CheckCircle, MapPin, Users, Package, 
-  X, Loader2, ArrowUpRight 
+  X, Loader2, ArrowUpRight, UploadCloud 
 } from "lucide-react";
 
 export default function OrganizerEventsPage() {
@@ -26,6 +27,7 @@ export default function OrganizerEventsPage() {
   // Create Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [newForm, setNewForm] = useState<CreateEventInput>({
     title: "",
     description: "",
@@ -101,6 +103,21 @@ export default function OrganizerEventsPage() {
       } catch (err: any) {
         showToast(err.message || t("common.error"), "error");
       }
+    }
+  };
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingImage(true);
+    try {
+      const res = await uploadService.uploadFile(file);
+      setNewForm((prev) => ({ ...prev, imageUrl: res.url }));
+      showToast("Tải ảnh bìa chiến dịch thành công!", "success");
+    } catch (err: any) {
+      showToast(err.message || "Không thể tải lên hình ảnh", "error");
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -420,6 +437,35 @@ export default function OrganizerEventsPage() {
                     onChange={(e) => setNewForm({ ...newForm, location: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
                   />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Ảnh bìa chiến dịch (Banner / Poster)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newForm.imageUrl || ""}
+                      onChange={(e) => setNewForm({ ...newForm, imageUrl: e.target.value })}
+                      placeholder="https://... hoặc tải ảnh từ máy tính"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+                    />
+                    <label className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer border border-slate-200 shrink-0">
+                      {isUploadingImage ? <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> : <UploadCloud className="w-4 h-4 text-emerald-600" />}
+                      <span>{isUploadingImage ? "Đang tải..." : "Tải ảnh"}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleImageFileChange}
+                        className="hidden"
+                        disabled={isUploadingImage}
+                      />
+                    </label>
+                  </div>
+                  {newForm.imageUrl && (
+                    <div className="mt-2 relative w-full h-24 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                      <img src={newForm.imageUrl} alt="Event preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

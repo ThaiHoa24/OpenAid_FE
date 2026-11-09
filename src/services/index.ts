@@ -1,4 +1,3 @@
-export * from "./storageService";
 export * from "./authService";
 export * from "./eventService";
 export * from "./volunteerService";
@@ -8,3 +7,5 @@ export * from "./batchService";
 export * from "./tripService";
 export * from "./transparencyService";
 export * from "./adminService";
+export * from "./uploadService";
+export * from "./dashboardService";

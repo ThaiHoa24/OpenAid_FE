@@ -1,4 +1,3 @@
-import { storageService } from "./storageService";
 import { authService } from "./authService";
 import apiClient from "@/lib/api/axiosClient";
 import type {
@@ -12,7 +11,6 @@ import type {
   User,
   VolunteerRole,
 } from "@/types";
-import { delay, generateId } from "@/utils";
 
 export interface EnrichedEvent extends Event {
   organization?: Organization;
@@ -63,16 +61,32 @@ export interface CreateEventInput {
   }[];
 }
 
-function enrichEvent(event: Event): EnrichedEvent {
-  const db = storageService.getDb();
-  const organization = db.organizations.find((o) => o.id === event.organizationId);
-  const volunteerRoles = db.volunteerRoles.filter((r) => r.eventId === event.id);
-  const donationNeeds = db.donationNeeds.filter((n) => n.eventId === event.id);
-  const applicationsCount = db.volunteerApplications.filter(
-    (a) => a.eventId === event.id
-  ).length;
-  const donationsCount = db.donations.filter((d) => d.eventId === event.id).length;
-  const tripsCount = db.trips.filter((t) => t.eventId === event.id).length;
+function mapBeEventToEnriched(e: any): EnrichedEvent {
+  const volunteerRoles: VolunteerRole[] = (e.volunteerRoles || []).map((r: any) => ({
+    id: r.id,
+    eventId: e.id,
+    name: r.name,
+    description: r.description || "",
+    requiredQuantity: Number(r.quantity || r.requiredQuantity || 0),
+    approvedQuantity: Number(r.approvedQuantity || 0),
+  }));
+
+  const donationNeeds: DonationNeed[] = (e.donationNeeds || []).map((n: any) => {
+    const rawTarget = typeof n.targetQuantity === "object" ? n.targetQuantity?.toNumber?.() ?? Number(n.targetQuantity) : Number(n.targetQuantity);
+    return {
+      id: n.id,
+      eventId: e.id,
+      itemTypeId: n.itemTypeId,
+      unitId: n.unitId,
+      itemType: n.itemType?.name || n.itemType || "Hàng cứu trợ",
+      unit: n.unit?.name || n.unit || "phần",
+      targetQuantity: isNaN(rawTarget) ? 0 : rawTarget,
+      pledgedQuantity: Number(n.pledgedQuantity || 0),
+      receivedQuantity: Number(n.receivedQuantity || 0),
+      distributedQuantity: Number(n.distributedQuantity || 0),
+      notes: n.notes,
+    };
+  });
 
   const totalRequiredVolunteers = volunteerRoles.reduce(
     (sum, r) => sum + r.requiredQuantity,
@@ -83,15 +97,38 @@ function enrichEvent(event: Event): EnrichedEvent {
     0
   );
 
+  const applicationsCount = Number(e._count?.volunteerApplications ?? e.applicationsCount ?? 0);
+  const donationsCount = Number(e._count?.donations ?? e.donationsCount ?? 0);
+  const tripsCount = Number(e._count?.trips ?? e.tripsCount ?? 0);
+
   const canPhysicalDelete =
-    event.status === "DRAFT" &&
+    e.status === "DRAFT" &&
     applicationsCount === 0 &&
     donationsCount === 0 &&
     tripsCount === 0;
 
   return {
-    ...event,
-    organization,
+    id: e.id,
+    organizationId: e.organizationId,
+    createdById: e.createdById,
+    title: e.title,
+    description: e.description || "",
+    location: e.location,
+    area: e.location || "Miền Trung",
+    startDate: e.startDate,
+    endDate: e.endDate || e.startDate,
+    status: e.status as EventStatus,
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt || e.createdAt,
+    contactName: e.contactName || "Ban điều phối",
+    contactPerson: e.contactName || "Ban điều phối",
+    contactPhone: e.contactPhone || "",
+    contactEmail: e.contactEmail || "",
+    imageUrl:
+      e.imageUrl ||
+      "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&auto=format&fit=crop&q=80",
+    category: "Disaster Relief",
+    organization: e.organization,
     volunteerRoles,
     donationNeeds,
     totalRequiredVolunteers,
@@ -104,142 +141,54 @@ function enrichEvent(event: Event): EnrichedEvent {
 }
 
 export const eventService = {
+  /**
+   * Lấy danh mục loại hiện vật từ BE
+   */
   async getItemTypes(): Promise<ItemType[]> {
-    try {
-      const list = await apiClient.get<any, ItemType[]>("/events/catalogs/item-types");
-      if (Array.isArray(list) && list.length > 0) return list;
-    } catch {
-      // Fallback
-    }
-    return [
-      { id: "50000000-0000-4000-8000-000000000001", code: "RICE", name: "Gạo (Rice)", category: "Food", isActive: true },
-      { id: "50000000-0000-4000-8000-000000000002", code: "WATER", name: "Nước khoáng (Drinking water)", category: "Beverages", isActive: true },
-    ];
+    const list = await apiClient.get<any, ItemType[]>("/events/catalogs/item-types");
+    return Array.isArray(list) ? list : [];
   },
 
+  /**
+   * Lấy danh mục đơn vị tính từ BE
+   */
   async getUnits(): Promise<Unit[]> {
-    try {
-      const list = await apiClient.get<any, Unit[]>("/events/catalogs/units");
-      if (Array.isArray(list) && list.length > 0) return list;
-    } catch {
-      // Fallback
-    }
-    return [
-      { id: "60000000-0000-4000-8000-000000000001", code: "KG", name: "Kilogram (kg)", isActive: true },
-      { id: "60000000-0000-4000-8000-000000000002", code: "BOTTLE", name: "Chai / Bình (Bottle)", isActive: true },
-    ];
+    const list = await apiClient.get<any, Unit[]>("/events/catalogs/units");
+    return Array.isArray(list) ? list : [];
   },
 
+  /**
+   * Lấy danh sách chiến dịch từ BE (hỗ trợ tìm kiếm, lọc khu vực, trạng thái)
+   */
   async getAll(filters?: EventFilterOptions): Promise<EnrichedEvent[]> {
-    // Try BE first
-    try {
-      const beEvents = await apiClient.get<any, any[]>("/events", {
-        params: {
-          search: filters?.search,
-          area: filters?.area !== "ALL" ? filters?.area : undefined,
-          status: filters?.status !== "ALL" ? filters?.status : undefined,
-        },
-      });
+    const params: Record<string, any> = {};
 
-      if (Array.isArray(beEvents) && beEvents.length > 0) {
-        return beEvents.map((e) => ({
-          id: e.id,
-          organizationId: e.organizationId,
-          createdById: e.createdById,
-          title: e.title,
-          description: e.description || "",
-          location: e.location,
-          area: e.location || "Miền Trung",
-          startDate: e.startDate,
-          endDate: e.endDate || e.startDate,
-          status: e.status,
-          createdAt: e.createdAt,
-          updatedAt: e.updatedAt || e.createdAt,
-          contactName: e.contactName || "Ban điều phối",
-          contactPerson: e.contactName || "Ban điều phối",
-          contactPhone: e.contactPhone || "",
-          contactEmail: "",
-          imageUrl:
-            "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&auto=format&fit=crop&q=80",
-          category: "Disaster Relief",
-          organization: e.organization,
-          volunteerRoles: (e.volunteerRoles || []).map((r: any) => ({
-            ...r,
-            requiredQuantity: r.quantity || 0,
-            approvedQuantity: 0,
-          })),
-          donationNeeds: (e.donationNeeds || []).map((n: any) => ({
-            ...n,
-            itemType: n.itemType?.name || n.itemType || "Hàng cứu trợ",
-            unit: n.unit?.name || n.unit || "phần",
-            targetQuantity: typeof n.targetQuantity === "object" ? Number(n.targetQuantity) : Number(n.targetQuantity),
-            pledgedQuantity: 0,
-            receivedQuantity: 0,
-            distributedQuantity: 0,
-          })),
-          totalRequiredVolunteers: (e.volunteerRoles || []).reduce(
-            (sum: number, r: any) => sum + (r.quantity || 0),
-            0
-          ),
-          totalApprovedVolunteers: 0,
-          applicationsCount: 0,
-          donationsCount: 0,
-          tripsCount: 0,
-          canPhysicalDelete: e.status === "DRAFT",
-        }));
-      }
-    } catch {
-      // Fallback to local DB
+    if (filters?.search?.trim()) {
+      params.search = filters.search.trim();
+    }
+    if (filters?.area && filters.area !== "ALL") {
+      params.area = filters.area;
+    }
+    if (filters?.status && filters.status !== "ALL") {
+      params.status = filters.status;
+    } else if (filters?.includeDrafts) {
+      // Backend defaults to PUBLISHED if no status; if drafts needed, pass explicitly if supported
     }
 
-    await delay(220);
-    const db = storageService.getDb();
-    let list = db.events.map(enrichEvent);
+    const beEvents = await apiClient.get<any, any[]>("/events", { params });
 
-    if (!filters?.includeDrafts) {
-      list = list.filter((e) => e.status === "PUBLISHED" || e.status === "CLOSED");
+    if (!Array.isArray(beEvents)) {
+      return [];
     }
 
+    let list = beEvents.map(mapBeEventToEnriched);
+
+    // Apply client-side filters if needed (e.g. organizationId, category, sorting)
     if (filters?.organizationId && filters.organizationId !== "ALL") {
       list = list.filter((e) => e.organizationId === filters.organizationId);
     }
-
-    if (filters?.search && filters.search.trim()) {
-      const q = filters.search.trim().toLowerCase();
-      list = list.filter(
-        (e) =>
-          e.title.toLowerCase().includes(q) ||
-          e.description.toLowerCase().includes(q) ||
-          e.location.toLowerCase().includes(q) ||
-          e.area.toLowerCase().includes(q) ||
-          (e.organization?.name.toLowerCase().includes(q) ?? false) ||
-          e.donationNeeds.some((n) => n.itemType.toLowerCase().includes(q))
-      );
-    }
-
-    if (filters?.area && filters.area !== "ALL") {
-      list = list.filter((e) => e.area.toLowerCase() === filters.area!.toLowerCase());
-    }
-
     if (filters?.category && filters.category !== "ALL") {
       list = list.filter((e) => e.category === filters.category);
-    }
-
-    if (filters?.status && filters.status !== "ALL") {
-      list = list.filter((e) => e.status === filters.status);
-    }
-
-    if (filters?.dateFilter && filters.dateFilter !== "ALL") {
-      if (filters.dateFilter === "ACTIVE") {
-        list = list.filter((e) => e.status === "PUBLISHED");
-      } else if (filters.dateFilter === "OCTOBER_2026") {
-        list = list.filter((e) => e.startDate.startsWith("2026-10"));
-      } else if (filters.dateFilter === "NOVEMBER_DECEMBER_2026") {
-        list = list.filter(
-          (e) =>
-            e.startDate.startsWith("2026-11") || e.startDate.startsWith("2026-12")
-        );
-      }
     }
 
     const sortBy = filters?.sortBy || "newest";
@@ -263,362 +212,199 @@ export const eventService = {
     return list;
   },
 
+  /**
+   * Lấy chi tiết chiến dịch theo ID từ BE
+   */
   async getById(id: string): Promise<EnrichedEvent | null> {
     try {
       const beEvent = await apiClient.get<any, any>(`/events/${id}`);
       if (beEvent) {
-        return {
-          id: beEvent.id,
-          organizationId: beEvent.organizationId,
-          createdById: beEvent.createdById,
-          title: beEvent.title,
-          description: beEvent.description || "",
-          location: beEvent.location,
-          area: beEvent.location || "Miền Trung",
-          startDate: beEvent.startDate,
-          endDate: beEvent.endDate || beEvent.startDate,
-          status: beEvent.status,
-          createdAt: beEvent.createdAt,
-          updatedAt: beEvent.updatedAt || beEvent.createdAt,
-          contactName: beEvent.contactName || "Ban điều phối",
-          contactPerson: beEvent.contactName || "Ban điều phối",
-          contactPhone: beEvent.contactPhone || "",
-          contactEmail: "",
-          imageUrl:
-            "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&auto=format&fit=crop&q=80",
-          category: "Disaster Relief",
-          organization: beEvent.organization,
-          volunteerRoles: (beEvent.volunteerRoles || []).map((r: any) => ({
-            ...r,
-            requiredQuantity: r.quantity || 0,
-            approvedQuantity: 0,
-          })),
-          donationNeeds: (beEvent.donationNeeds || []).map((n: any) => ({
-            ...n,
-            itemType: n.itemType?.name || n.itemType || "Hàng cứu trợ",
-            unit: n.unit?.name || n.unit || "phần",
-            targetQuantity:
-              typeof n.targetQuantity === "object"
-                ? Number(n.targetQuantity)
-                : Number(n.targetQuantity),
-            pledgedQuantity: 0,
-            receivedQuantity: 0,
-            distributedQuantity: 0,
-          })),
-          totalRequiredVolunteers: (beEvent.volunteerRoles || []).reduce(
-            (sum: number, r: any) => sum + (r.quantity || 0),
-            0
-          ),
-          totalApprovedVolunteers: 0,
-          applicationsCount: 0,
-          donationsCount: 0,
-          tripsCount: 0,
-          canPhysicalDelete: beEvent.status === "DRAFT",
-        };
+        return mapBeEventToEnriched(beEvent);
       }
-    } catch {
-      // Fallback
+      return null;
+    } catch (err: any) {
+      if (err.message?.includes("404") || err.message?.includes("not found")) {
+        return null;
+      }
+      throw err;
     }
-
-    await delay(180);
-    const db = storageService.getDb();
-    const ev = db.events.find((e) => e.id === id);
-    if (!ev) return null;
-    return enrichEvent(ev);
   },
 
+  /**
+   * Tạo chiến dịch mới qua BE (POST /api/events)
+   * và tự động publish nếu người dùng chọn publishImmediately
+   */
   async create(input: CreateEventInput, actor: User): Promise<EnrichedEvent> {
-    await delay(300);
-    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
     authService.assertOrganizerAccess(actor, input.organizationId);
 
-    const db = storageService.getDb();
-    const org = db.organizations.find((o) => o.id === input.organizationId);
-    if (!org) throw new Error("Organization not found.");
-
-    if (input.publishImmediately && org.status !== "APPROVED") {
-      throw new Error(
-        `Organization '${org.name}' is currently ${org.status}. Only an APPROVED organization can publish an Event. Save as DRAFT instead.`
-      );
-    }
-
     if (new Date(input.endDate).getTime() < new Date(input.startDate).getTime()) {
-      throw new Error("End date must be after start date.");
+      throw new Error("Ngày kết thúc phải diễn ra sau ngày bắt đầu.");
     }
 
-    const eventId = generateId("evt");
-    const status: EventStatus = input.publishImmediately ? "PUBLISHED" : "DRAFT";
-    const now = new Date().toISOString();
+    // 1. Resolve Item Types & Units for Donation Needs
+    let itemTypes: ItemType[] = [];
+    let units: Unit[] = [];
+    try {
+      [itemTypes, units] = await Promise.all([
+        this.getItemTypes(),
+        this.getUnits(),
+      ]);
+    } catch {
+      // If catalogs query fails, use empty arrays
+    }
 
-    const newEvent: Event = {
-      id: eventId,
-      title: input.title.trim(),
-      description: input.description.trim(),
-      location: input.location.trim(),
-      area: input.area.trim() || "Da Nang",
-      startDate: input.startDate,
-      endDate: input.endDate,
-      contactPerson: input.contactPerson.trim() || actor.name,
-      contactPhone: input.contactPhone.trim() || actor.phone,
-      contactEmail: input.contactEmail.trim() || actor.email,
-      imageUrl:
-        input.imageUrl?.trim() ||
-        "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&auto=format&fit=crop&q=80",
-      category: input.category,
-      status,
+    // Map donation needs to BE DTO schema
+    const seenNeedKeys = new Set<string>();
+    const donationNeeds: {
+      itemTypeId: string;
+      unitId: string;
+      targetQuantity: number;
+      notes?: string;
+    }[] = [];
+
+    for (const n of input.donationNeeds || []) {
+      if (!n.itemType?.trim() || Number(n.targetQuantity) <= 0) continue;
+
+      const isItemUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(n.itemType.trim());
+      const matchedItem = itemTypes.find(
+        (it) =>
+          it.id === n.itemType ||
+          it.code.toLowerCase() === n.itemType.toLowerCase() ||
+          it.name.toLowerCase().includes(n.itemType.toLowerCase()) ||
+          n.itemType.toLowerCase().includes(it.name.toLowerCase())
+      );
+      const itemTypeId = isItemUuid
+        ? n.itemType.trim()
+        : matchedItem?.id || itemTypes[0]?.id || "50000000-0000-4000-8000-000000000001";
+
+      const isUnitUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(n.unit.trim());
+      const matchedUnit = units.find(
+        (u) =>
+          u.id === n.unit ||
+          u.code.toLowerCase() === n.unit.toLowerCase() ||
+          u.name.toLowerCase().includes(n.unit.toLowerCase()) ||
+          n.unit.toLowerCase().includes(u.name.toLowerCase())
+      );
+      const unitId = isUnitUuid
+        ? n.unit.trim()
+        : matchedUnit?.id || units[0]?.id || "60000000-0000-4000-8000-000000000001";
+
+      const comboKey = `${itemTypeId}:${unitId}`;
+      if (seenNeedKeys.has(comboKey)) {
+        // Aggregate target quantity for identical item & unit
+        const existing = donationNeeds.find((dn) => `${dn.itemTypeId}:${dn.unitId}` === comboKey);
+        if (existing) {
+          existing.targetQuantity += Number(n.targetQuantity);
+        }
+      } else {
+        seenNeedKeys.add(comboKey);
+        donationNeeds.push({
+          itemTypeId,
+          unitId,
+          targetQuantity: Number(n.targetQuantity),
+          notes: `${n.itemType.trim()} (${n.unit.trim()})`,
+        });
+      }
+    }
+
+    // Map volunteer roles to BE DTO schema
+    const seenRoleNames = new Set<string>();
+    const volunteerRoles: {
+      name: string;
+      quantity: number;
+      description?: string;
+    }[] = [];
+
+    for (const r of input.volunteerRoles || []) {
+      const cleanName = r.name.trim();
+      if (!cleanName || Number(r.requiredQuantity) <= 0) continue;
+      if (seenRoleNames.has(cleanName.toLowerCase())) continue;
+      seenRoleNames.add(cleanName.toLowerCase());
+
+      volunteerRoles.push({
+        name: cleanName,
+        quantity: Number(r.requiredQuantity),
+        description: r.description?.trim() || `${cleanName} - Vị trí hỗ trợ tình nguyện`,
+      });
+    }
+
+    const payload = {
       organizationId: input.organizationId,
-      createdById: actor.id,
-      createdAt: now,
-      updatedAt: now,
+      title: input.title.trim(),
+      description: input.description?.trim() || "",
+      location: input.location.trim(),
+      contactName: input.contactPerson?.trim() || actor.name,
+      contactPhone: input.contactPhone?.trim() || actor.phone || "0905123456",
+      startDate: new Date(input.startDate).toISOString(),
+      endDate: input.endDate ? new Date(input.endDate).toISOString() : undefined,
+      volunteerRoles: volunteerRoles.length > 0 ? volunteerRoles : undefined,
+      donationNeeds: donationNeeds.length > 0 ? donationNeeds : undefined,
     };
 
-    db.events.unshift(newEvent);
+    // 2. Call BE API POST /api/events
+    const createdEvent = await apiClient.post<any, any>("/events", payload);
 
-    for (const r of input.volunteerRoles) {
-      if (!r.name.trim() || r.requiredQuantity <= 0) continue;
-      db.volunteerRoles.push({
-        id: generateId("role"),
-        eventId,
-        name: r.name.trim(),
-        description: r.description.trim() || `${r.name.trim()} support role`,
-        requiredQuantity: Number(r.requiredQuantity),
-        approvedQuantity: 0,
-      });
+    if (!createdEvent || !createdEvent.id) {
+      throw new Error("Không thể tạo chiến dịch cứu trợ trên máy chủ.");
     }
 
-    for (const n of input.donationNeeds) {
-      if (!n.itemType.trim() || n.targetQuantity <= 0) continue;
-      db.donationNeeds.push({
-        id: generateId("need"),
-        eventId,
-        itemType: n.itemType.trim(),
-        unit: n.unit.trim(),
-        targetQuantity: Number(n.targetQuantity),
-        pledgedQuantity: 0,
-        receivedQuantity: 0,
-        distributedQuantity: 0,
-      });
+    // 3. If publishImmediately is checked, publish right away
+    if (input.publishImmediately) {
+      try {
+        await apiClient.patch(`/events/${createdEvent.id}/status`, {
+          status: "PUBLISHED",
+        });
+        createdEvent.status = "PUBLISHED";
+      } catch (pubErr: any) {
+        console.warn("Event created as DRAFT but failed to publish immediately:", pubErr);
+      }
     }
 
-    storageService.addLog(db, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actorRole: "ORGANIZER",
-      action: status === "PUBLISHED" ? "EVENT_PUBLISHED" : "EVENT_CREATED_DRAFT",
-      description: `Created event '${newEvent.title}' with status ${status}.`,
-      newStatus: status,
-      entityType: "EVENT",
-      entityId: eventId,
-      eventId,
-    });
-
-    storageService.saveDb(db);
-    return enrichEvent(newEvent);
+    return mapBeEventToEnriched(createdEvent);
   },
 
+  /**
+   * Cập nhật chiến dịch qua BE (PATCH /api/events/:id)
+   */
   async update(
     eventId: string,
     updates: Partial<CreateEventInput>,
     actor: User
   ): Promise<EnrichedEvent> {
-    await delay(260);
-    const db = storageService.getDb();
-    const idx = db.events.findIndex((e) => e.id === eventId);
-    if (idx === -1) throw new Error("Event not found.");
+    const payload: Record<string, any> = {};
 
-    const existing = db.events[idx];
-    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
-    authService.assertOrganizerAccess(actor, existing.organizationId);
+    if (updates.title) payload.title = updates.title.trim();
+    if (updates.description !== undefined) payload.description = updates.description.trim();
+    if (updates.location) payload.location = updates.location.trim();
+    if (updates.contactPerson) payload.contactName = updates.contactPerson.trim();
+    if (updates.contactPhone) payload.contactPhone = updates.contactPhone.trim();
+    if (updates.startDate) payload.startDate = new Date(updates.startDate).toISOString();
+    if (updates.endDate) payload.endDate = new Date(updates.endDate).toISOString();
 
-    if (existing.status === "CLOSED" || existing.status === "CANCELLED") {
-      throw new Error(`Cannot edit an event that is already ${existing.status}.`);
-    }
-
-    const startDate = updates.startDate ?? existing.startDate;
-    const endDate = updates.endDate ?? existing.endDate;
-    if (new Date(endDate).getTime() < new Date(startDate).getTime()) {
-      throw new Error("End date must be after start date.");
-    }
-
-    db.events[idx] = {
-      ...existing,
-      title: updates.title?.trim() ?? existing.title,
-      description: updates.description?.trim() ?? existing.description,
-      location: updates.location?.trim() ?? existing.location,
-      area: updates.area?.trim() ?? existing.area,
-      startDate,
-      endDate,
-      contactPerson: updates.contactPerson?.trim() ?? existing.contactPerson,
-      contactPhone: updates.contactPhone?.trim() ?? existing.contactPhone,
-      contactEmail: updates.contactEmail?.trim() ?? existing.contactEmail,
-      imageUrl: updates.imageUrl?.trim() || existing.imageUrl,
-      category: updates.category ?? existing.category,
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (updates.volunteerRoles) {
-      for (const r of updates.volunteerRoles) {
-        if (!r.name.trim() || r.requiredQuantity <= 0) continue;
-        const foundRole = db.volunteerRoles.find(
-          (vr) =>
-            vr.eventId === eventId &&
-            vr.name.toLowerCase() === r.name.trim().toLowerCase()
-        );
-        if (foundRole) {
-          foundRole.requiredQuantity = Math.max(
-            Number(r.requiredQuantity),
-            foundRole.approvedQuantity
-          );
-          foundRole.description = r.description.trim() || foundRole.description;
-        } else {
-          db.volunteerRoles.push({
-            id: generateId("role"),
-            eventId,
-            name: r.name.trim(),
-            description: r.description.trim() || `${r.name.trim()} support role`,
-            requiredQuantity: Number(r.requiredQuantity),
-            approvedQuantity: 0,
-          });
-        }
-      }
-    }
-
-    if (updates.donationNeeds) {
-      for (const n of updates.donationNeeds) {
-        if (!n.itemType.trim() || n.targetQuantity <= 0) continue;
-        const foundNeed = db.donationNeeds.find(
-          (dn) =>
-            dn.eventId === eventId &&
-            dn.itemType.toLowerCase() === n.itemType.trim().toLowerCase() &&
-            dn.unit.toLowerCase() === n.unit.trim().toLowerCase()
-        );
-        if (foundNeed) {
-          foundNeed.targetQuantity = Number(n.targetQuantity);
-        } else {
-          db.donationNeeds.push({
-            id: generateId("need"),
-            eventId,
-            itemType: n.itemType.trim(),
-            unit: n.unit.trim(),
-            targetQuantity: Number(n.targetQuantity),
-            pledgedQuantity: 0,
-            receivedQuantity: 0,
-            distributedQuantity: 0,
-          });
-        }
-      }
-    }
-
-    storageService.addLog(db, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actorRole: "ORGANIZER",
-      action: "EVENT_UPDATED",
-      description: `Updated details and targets for event '${db.events[idx].title}'.`,
-      oldStatus: existing.status,
-      newStatus: existing.status,
-      entityType: "EVENT",
-      entityId: eventId,
-      eventId,
-    });
-
-    storageService.saveDb(db);
-    return enrichEvent(db.events[idx]);
+    const updated = await apiClient.patch<any, any>(`/events/${eventId}`, payload);
+    return mapBeEventToEnriched(updated);
   },
 
+  /**
+   * Thay đổi trạng thái chiến dịch qua BE (PATCH /api/events/:id/status)
+   */
   async changeStatus(
     eventId: string,
     targetStatus: EventStatus,
     actor: User
   ): Promise<EnrichedEvent> {
-    try {
-      await apiClient.patch(`/events/${eventId}/status`, { status: targetStatus });
-    } catch {
-      // Fallback
+    await apiClient.patch(`/events/${eventId}/status`, { status: targetStatus });
+    const refreshed = await this.getById(eventId);
+    if (!refreshed) {
+      throw new Error("Không thể tải lại thông tin sự kiện sau khi cập nhật trạng thái.");
     }
-    await delay(250);
-    const db = storageService.getDb();
-    const idx = db.events.findIndex((e) => e.id === eventId);
-    if (idx === -1) throw new Error("Event not found.");
-
-    const event = db.events[idx];
-    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
-    authService.assertOrganizerAccess(actor, event.organizationId);
-
-    const oldStatus = event.status;
-
-    if (oldStatus === targetStatus) return enrichEvent(event);
-
-    // Validate allowed transitions:
-    // DRAFT -> PUBLISHED -> CLOSED or PUBLISHED -> CANCELLED
-    if (targetStatus === "PUBLISHED") {
-      if (oldStatus !== "DRAFT") {
-        throw new Error(`Invalid transition: Cannot publish an event from ${oldStatus}.`);
-      }
-      const org = db.organizations.find((o) => o.id === event.organizationId);
-      if (!org || org.status !== "APPROVED") {
-        throw new Error(
-          `Only an Organization approved by the Platform Admin can publish an Event (Current org status: ${org?.status || "UNKNOWN"}).`
-        );
-      }
-    } else if (targetStatus === "CLOSED") {
-      if (oldStatus !== "PUBLISHED") {
-        throw new Error(
-          `Invalid transition: Only a PUBLISHED event can be closed (Current: ${oldStatus}).`
-        );
-      }
-    } else if (targetStatus === "CANCELLED") {
-      if (oldStatus !== "PUBLISHED") {
-        throw new Error(
-          `Invalid transition: Only a PUBLISHED event can be cancelled (Current: ${oldStatus}).`
-        );
-      }
-    } else {
-      throw new Error(`Invalid transition from ${oldStatus} to ${targetStatus}.`);
-    }
-
-    db.events[idx].status = targetStatus;
-    db.events[idx].updatedAt = new Date().toISOString();
-
-    storageService.addLog(db, {
-      actorId: actor.id,
-      actorName: actor.name,
-      actorRole: actor.systemRole === "ADMIN" ? "ADMIN" : "ORGANIZER",
-      action: `EVENT_${targetStatus}`,
-      description: `Changed status of event '${event.title}' from ${oldStatus} to ${targetStatus}.`,
-      oldStatus,
-      newStatus: targetStatus,
-      entityType: "EVENT",
-      entityId: eventId,
-      eventId,
-    });
-
-    storageService.saveDb(db);
-    return enrichEvent(db.events[idx]);
+    return refreshed;
   },
 
+  /**
+   * Xóa chiến dịch DRAFT qua BE (DELETE /api/events/:id)
+   */
   async delete(eventId: string, _actor: User): Promise<void> {
-    await delay(250);
-    const db = storageService.getDb();
-    const event = db.events.find((e) => e.id === eventId);
-    if (!event) throw new Error("Event not found.");
-
-    // Authorization check: User must be an ORGANIZER of the organization (or Platform ADMIN)
-    authService.assertOrganizerAccess(_actor, event.organizationId);
-
-    const hasApps = db.volunteerApplications.some((a) => a.eventId === eventId);
-    const hasDonations = db.donations.some((d) => d.eventId === eventId);
-    const hasTrips = db.trips.some((t) => t.eventId === eventId);
-
-    if (event.status !== "DRAFT" || hasApps || hasDonations || hasTrips) {
-      throw new Error(
-        "Deletion blocked: Only DRAFT events with no applications, donations, or trips can be physically deleted. Use Close or Cancel instead."
-      );
-    }
-
-    db.events = db.events.filter((e) => e.id !== eventId);
-    db.volunteerRoles = db.volunteerRoles.filter((r) => r.eventId !== eventId);
-    db.donationNeeds = db.donationNeeds.filter((n) => n.eventId !== eventId);
-    storageService.saveDb(db);
+    await apiClient.delete(`/events/${eventId}`);
   },
 };
