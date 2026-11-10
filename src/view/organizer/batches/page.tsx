@@ -49,7 +49,7 @@ export default function OrganizerBatchesPage() {
     setIsLoading(true);
     try {
       const [bList, evs] = await Promise.all([
-        batchService.getByOrganization(activeOrganization.id),
+        batchService.getByOrganization(activeOrganization.id, selectedEventId),
         eventService.getAll({ organizationId: activeOrganization.id, includeDrafts: true }),
       ]);
       setBatches(bList);
@@ -62,7 +62,7 @@ export default function OrganizerBatchesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeOrganization, createEventId]);
+  }, [activeOrganization, createEventId, selectedEventId]);
 
   useEffect(() => {
     loadData();

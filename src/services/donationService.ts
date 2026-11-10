@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api/axiosClient";
+import { eventService } from "./eventService";
 import type {
   Donation,
   DonationBatch,
@@ -116,6 +117,14 @@ export const donationService = {
   ): Promise<EnrichedDonation[]> {
     if (eventId && eventId !== "ALL") {
       return this.getByEvent(eventId);
+    }
+    if (organizationId) {
+      const events = await eventService.getAll({ organizationId, includeDrafts: true });
+      if (events.length === 0) return [];
+      const results = await Promise.all(
+        events.map((e) => this.getByEvent(e.id).catch(() => []))
+      );
+      return results.flat();
     }
     return [];
   },

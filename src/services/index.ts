@@ -9,3 +9,4 @@ export * from "./transparencyService";
 export * from "./adminService";
 export * from "./uploadService";
 export * from "./dashboardService";
+export * from "./organizationService";

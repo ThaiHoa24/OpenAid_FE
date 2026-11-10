@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api/axiosClient";
+import { eventService } from "./eventService";
 import type {
   DistributionPoint,
   DistributionPointStatus,
@@ -209,6 +210,19 @@ export const tripService = {
       const res = await apiClient.get<any, any>(`/trips/event/${eventId}`);
       const items = Array.isArray(res) ? res : res?.items || [];
       return items.map(mapBeTripToEnriched);
+    }
+    if (organizationId) {
+      const events = await eventService.getAll({ organizationId, includeDrafts: true });
+      if (events.length === 0) return [];
+      const results = await Promise.all(
+        events.map((e) =>
+          apiClient
+            .get<any, any>(`/trips/event/${e.id}`)
+            .then((res) => (Array.isArray(res) ? res : res?.items || []))
+            .catch(() => [])
+        )
+      );
+      return results.flat().map(mapBeTripToEnriched);
     }
     return [];
   },

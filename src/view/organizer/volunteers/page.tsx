@@ -32,7 +32,7 @@ export default function OrganizerVolunteersPage() {
     setIsLoading(true);
     try {
       const [apps, evs] = await Promise.all([
-        volunteerService.getByOrganization(activeOrganization.id),
+        volunteerService.getByOrganization(activeOrganization.id, selectedEventId),
         eventService.getAll({ organizationId: activeOrganization.id, includeDrafts: true }),
       ]);
       setApplications(apps);
@@ -42,7 +42,7 @@ export default function OrganizerVolunteersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeOrganization]);
+  }, [activeOrganization, selectedEventId]);
 
   useEffect(() => {
     loadData();

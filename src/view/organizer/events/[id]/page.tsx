@@ -34,7 +34,12 @@ import {
   FileText,
   Building2,
   Sparkles,
+  Edit,
+  Plus,
+  Trash2,
+  Save,
 } from "lucide-react";
+import type { ItemType, Unit } from "@/types";
 
 export default function OrganizerEventDetailPage({
   params,
@@ -56,6 +61,31 @@ export default function OrganizerEventDetailPage({
   const [volunteerStatusFilter, setVolunteerStatusFilter] = useState<string>("ALL");
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // Edit Event Modal State
+  const [showEditEventModal, setShowEditEventModal] = useState(false);
+  const [isUpdatingEvent, setIsUpdatingEvent] = useState(false);
+  const [editEventForm, setEditEventForm] = useState({
+    title: "",
+    description: "",
+    location: "",
+    contactPerson: "",
+    contactPhone: "",
+    startDate: "",
+    endDate: "",
+  });
+
+  // Add Donation Need Modal State
+  const [showAddNeedModal, setShowAddNeedModal] = useState(false);
+  const [isAddingNeed, setIsAddingNeed] = useState(false);
+  const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [newNeedForm, setNewNeedForm] = useState({
+    itemTypeId: "",
+    unitId: "",
+    targetQuantity: 100,
+    notes: "",
+  });
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -83,6 +113,74 @@ export default function OrganizerEventDetailPage({
     window.addEventListener("openaid-db-changed", handleDataChange);
     return () => window.removeEventListener("openaid-db-changed", handleDataChange);
   }, [loadData]);
+
+  // Handle Edit Event
+  const handleUpdateEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !event) return;
+    setIsUpdatingEvent(true);
+    try {
+      await eventService.update(event.id, editEventForm, user);
+      showToast("Cập nhật thông tin chiến dịch thành công!", "success");
+      setShowEditEventModal(false);
+      await loadData();
+    } catch (err: any) {
+      showToast(err.message || "Cập nhật chiến dịch thất bại", "error");
+    } finally {
+      setIsUpdatingEvent(false);
+    }
+  };
+
+  // Handle Open Add Need Modal
+  const handleOpenAddNeedModal = async () => {
+    try {
+      const [itList, uList] = await Promise.all([
+        eventService.getItemTypes(),
+        eventService.getUnits(),
+      ]);
+      setItemTypes(itList);
+      setUnits(uList);
+      setNewNeedForm({
+        itemTypeId: itList[0]?.id || "",
+        unitId: uList[0]?.id || "",
+        targetQuantity: 100,
+        notes: "",
+      });
+      setShowAddNeedModal(true);
+    } catch {
+      showToast("Không thể tải danh mục hiện vật", "error");
+    }
+  };
+
+  // Handle Add Donation Need
+  const handleAddDonationNeed = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!event || !newNeedForm.itemTypeId || !newNeedForm.unitId) return;
+    setIsAddingNeed(true);
+    try {
+      await eventService.addDonationNeed(event.id, newNeedForm);
+      showToast("Thêm nhu cầu cứu trợ thành công!", "success");
+      setShowAddNeedModal(false);
+      await loadData();
+    } catch (err: any) {
+      showToast(err.message || "Không thể thêm nhu cầu", "error");
+    } finally {
+      setIsAddingNeed(false);
+    }
+  };
+
+  // Handle Remove Donation Need
+  const handleRemoveDonationNeed = async (needId: string) => {
+    if (!event) return;
+    if (!confirm("Bạn có chắc chắn muốn xóa nhu cầu hiện vật này khỏi chiến dịch nháp?")) return;
+    try {
+      await eventService.removeDonationNeed(event.id, needId);
+      showToast("Đã xóa nhu cầu hiện vật", "info");
+      await loadData();
+    } catch (err: any) {
+      showToast(err.message || "Không thể xóa nhu cầu", "error");
+    }
+  };
 
   // Handle Volunteer Application Review (Approve / Reject)
   const handleReviewVolunteer = async (appId: string, status: "APPROVED" | "REJECTED") => {
@@ -268,6 +366,26 @@ export default function OrganizerEventDetailPage({
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden lg:block">
               Thao tác chiến dịch:
             </span>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEditEventForm({
+                  title: event.title,
+                  description: event.description || "",
+                  location: event.location,
+                  contactPerson: event.contactPerson,
+                  contactPhone: event.contactPhone,
+                  startDate: event.startDate ? new Date(event.startDate).toISOString().split("T")[0] : "",
+                  endDate: event.endDate ? new Date(event.endDate).toISOString().split("T")[0] : "",
+                });
+                setShowEditEventModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+            >
+              <Edit className="w-3.5 h-3.5 text-slate-600" />
+              <span>Chỉnh sửa thông tin</span>
+            </button>
 
             {event.status === "DRAFT" && (
               <button
@@ -662,10 +780,22 @@ export default function OrganizerEventDetailPage({
 
           {/* Donation Needs */}
           <div className="bg-white rounded-3xl p-6 border border-[#E5E7E0] shadow-xs space-y-4">
-            <h3 className="font-extrabold text-base text-[#1C2B24] flex items-center gap-2">
-              <Package className="w-5 h-5 text-[#F28C1B]" />
-              <span>Nhu cầu hiện vật tiếp nhận</span>
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-base text-[#1C2B24] flex items-center gap-2">
+                <Package className="w-5 h-5 text-[#F28C1B]" />
+                <span>Nhu cầu hiện vật tiếp nhận</span>
+              </h3>
+              {event.status === "DRAFT" && (
+                <button
+                  type="button"
+                  onClick={handleOpenAddNeedModal}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-50 hover:bg-orange-100 text-[#F28C1B] border border-orange-200 text-xs font-bold transition cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Thêm mặt hàng</span>
+                </button>
+              )}
+            </div>
 
             <div className="space-y-3">
               {event.donationNeeds.map((need) => {
@@ -676,11 +806,23 @@ export default function OrganizerEventDetailPage({
                 return (
                   <div
                     key={need.id}
-                    className="p-4 rounded-2xl bg-[#FAF9F6] border border-[#E5E7E0] space-y-2"
+                    className="p-4 rounded-2xl bg-[#FAF9F6] border border-[#E5E7E0] space-y-2 relative group"
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-sm text-[#1C2B24]">{need.itemType}</span>
-                      <span className="text-xs font-bold text-[#1F4D36]">{pct}%</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#1F4D36]">{pct}%</span>
+                        {event.status === "DRAFT" && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDonationNeed(need.id)}
+                            className="p-1 rounded text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                            title="Xóa mục này"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 text-[11px] text-[#5F6F66]">
@@ -704,6 +846,246 @@ export default function OrganizerEventDetailPage({
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CHỈNH SỬA CHIẾN DỊCH */}
+      {showEditEventModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 animate-scaleUp">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <Edit className="w-5 h-5 text-emerald-600" />
+                <span>Chỉnh Sửa Thông Tin Chiến Dịch</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowEditEventModal(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateEvent} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Tiêu đề chiến dịch *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editEventForm.title}
+                  onChange={(e) => setEditEventForm({ ...editEventForm, title: e.target.value })}
+                  className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Mô tả chi tiết mục tiêu cứu trợ
+                </label>
+                <textarea
+                  rows={3}
+                  value={editEventForm.description}
+                  onChange={(e) => setEditEventForm({ ...editEventForm, description: e.target.value })}
+                  className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Địa bàn thực hiện *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editEventForm.location}
+                  onChange={(e) => setEditEventForm({ ...editEventForm, location: e.target.value })}
+                  className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Người phụ trách liên hệ *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editEventForm.contactPerson}
+                    onChange={(e) => setEditEventForm({ ...editEventForm, contactPerson: e.target.value })}
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Số điện thoại liên lạc *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={editEventForm.contactPhone}
+                    onChange={(e) => setEditEventForm({ ...editEventForm, contactPhone: e.target.value })}
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Ngày bắt đầu *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={editEventForm.startDate}
+                    onChange={(e) => setEditEventForm({ ...editEventForm, startDate: e.target.value })}
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Ngày kết thúc
+                  </label>
+                  <input
+                    type="date"
+                    value={editEventForm.endDate}
+                    onChange={(e) => setEditEventForm({ ...editEventForm, endDate: e.target.value })}
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowEditEventModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingEvent}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isUpdatingEvent ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>{isUpdatingEvent ? "Đang lưu..." : "Lưu thay đổi"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: THÊM NHU CẦU HIỆN VẬT */}
+      {showAddNeedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 animate-scaleUp">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <Package className="w-5 h-5 text-[#F28C1B]" />
+                <span>Thêm Nhu Cầu Hiện Vật Mới</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAddNeedModal(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddDonationNeed} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Loại hàng cứu trợ *
+                </label>
+                <select
+                  required
+                  value={newNeedForm.itemTypeId}
+                  onChange={(e) => setNewNeedForm({ ...newNeedForm, itemTypeId: e.target.value })}
+                  className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                >
+                  {itemTypes.map((it) => (
+                    <option key={it.id} value={it.id}>
+                      {it.name} ({it.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Đơn vị tính *
+                  </label>
+                  <select
+                    required
+                    value={newNeedForm.unitId}
+                    onChange={(e) => setNewNeedForm({ ...newNeedForm, unitId: e.target.value })}
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  >
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Chỉ tiêu tiếp nhận *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={newNeedForm.targetQuantity}
+                    onChange={(e) => setNewNeedForm({ ...newNeedForm, targetQuantity: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Ghi chú tiêu chuẩn tiếp nhận
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: Còn hạn dùng tối thiểu 6 tháng, đóng thùng..."
+                  value={newNeedForm.notes}
+                  onChange={(e) => setNewNeedForm({ ...newNeedForm, notes: e.target.value })}
+                  className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddNeedModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingNeed}
+                  className="px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isAddingNeed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  <span>{isAddingNeed ? "Đang thêm..." : "Thêm vào chiến dịch"}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

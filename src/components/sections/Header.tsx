@@ -437,6 +437,14 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
                             <FileCheck2 className="w-3.5 h-3.5 text-[#1F4D36]" />
                             <span>Bằng chứng & đối soát</span>
                           </Link>
+                          <Link
+                            href="/organizer/organization"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[#E6EFE3]/50 text-[#1C2B24]"
+                          >
+                            <Building2 className="w-3.5 h-3.5 text-[#1F4D36]" />
+                            <span>Tổ chức & thành viên</span>
+                          </Link>
                         </div>
                       )}
 
@@ -713,6 +721,14 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
                   >
                     <Package className="w-4 h-4 text-[#1F4D36]" />
                     <span>Sổ cái kho bãi</span>
+                  </Link>
+                  <Link
+                    href="/organizer/organization"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#1C2B24] hover:bg-slate-50"
+                  >
+                    <Building2 className="w-4 h-4 text-[#1F4D36]" />
+                    <span>Tổ chức & thành viên</span>
                   </Link>
                 </div>
               )}

@@ -39,7 +39,7 @@ export default function OrganizerDonationsPage() {
     setIsLoading(true);
     try {
       const [list, evs] = await Promise.all([
-        donationService.getByOrganization(activeOrganization.id),
+        donationService.getByOrganization(activeOrganization.id, selectedEventId),
         eventService.getAll({ organizationId: activeOrganization.id, includeDrafts: true }),
       ]);
       setDonations(list);
@@ -49,7 +49,7 @@ export default function OrganizerDonationsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeOrganization]);
+  }, [activeOrganization, selectedEventId]);
 
   useEffect(() => {
     loadData();

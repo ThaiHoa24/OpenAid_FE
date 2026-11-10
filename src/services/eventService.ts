@@ -407,4 +407,31 @@ export const eventService = {
   async delete(eventId: string, _actor: User): Promise<void> {
     await apiClient.delete(`/events/${eventId}`);
   },
+
+  /**
+   * Thêm nhu cầu cứu trợ vào chiến dịch DRAFT (POST /api/events/:id/donation-needs)
+   */
+  async addDonationNeed(
+    eventId: string,
+    payload: {
+      itemTypeId: string;
+      unitId: string;
+      targetQuantity: number;
+      notes?: string;
+    }
+  ): Promise<any> {
+    return apiClient.post(`/events/${eventId}/donation-needs`, {
+      itemTypeId: payload.itemTypeId,
+      unitId: payload.unitId,
+      targetQuantity: Number(payload.targetQuantity),
+      notes: payload.notes?.trim(),
+    });
+  },
+
+  /**
+   * Xóa nhu cầu cứu trợ khỏi chiến dịch DRAFT (DELETE /api/events/:id/donation-needs/:needId)
+   */
+  async removeDonationNeed(eventId: string, needId: string): Promise<any> {
+    return apiClient.delete(`/events/${eventId}/donation-needs/${needId}`);
+  },
 };

@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api/axiosClient";
+import { tripService } from "./tripService";
 import type {
   BatchStatus,
   DistributionPointStatus,
@@ -38,7 +39,7 @@ function mapBeEvidence(e: any): EnrichedEvidence {
 
 export const transparencyService = {
   /**
-   * Lấy danh sách ảnh minh chứng (lọc theo tripId từ BE GET /api/evidence/trip/:tripId)
+   * Lấy danh sách ảnh minh chứng (lọc theo tripId, eventId, hoặc organizationId)
    */
   async getEvidences(filters?: {
     organizationId?: string;
@@ -49,8 +50,38 @@ export const transparencyService = {
     if (filters?.tripId) {
       const res = await apiClient.get<any, any[]>(`/evidence/trip/${filters.tripId}`);
       if (Array.isArray(res)) {
-        return res.map(mapBeEvidence);
+        let list = res.map(mapBeEvidence);
+        if (filters.onlyPublicApproved) {
+          list = list.filter((e) => e.status === "APPROVED_PUBLIC");
+        }
+        return list;
       }
+    }
+    if (filters?.eventId) {
+      const trips = await tripService.getByOrganization(undefined, filters.eventId);
+      const results = await Promise.all(
+        trips.map((t) =>
+          apiClient.get<any, any[]>(`/evidence/trip/${t.id}`).catch(() => [])
+        )
+      );
+      let list = results.flat().map(mapBeEvidence);
+      if (filters?.onlyPublicApproved) {
+        list = list.filter((e) => e.status === "APPROVED_PUBLIC");
+      }
+      return list;
+    }
+    if (filters?.organizationId) {
+      const trips = await tripService.getByOrganization(filters.organizationId);
+      const results = await Promise.all(
+        trips.map((t) =>
+          apiClient.get<any, any[]>(`/evidence/trip/${t.id}`).catch(() => [])
+        )
+      );
+      let list = results.flat().map(mapBeEvidence);
+      if (filters?.onlyPublicApproved) {
+        list = list.filter((e) => e.status === "APPROVED_PUBLIC");
+      }
+      return list;
     }
     return [];
   },

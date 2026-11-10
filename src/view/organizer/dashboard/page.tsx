@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/hooks/useTranslation";
-import { adminService } from "@/services/adminService";
+import { eventService, type EnrichedEvent } from "@/services/eventService";
+import { dashboardService, type EventDashboardResponse } from "@/services/dashboardService";
 import { batchService, type EnrichedBatch } from "@/services/batchService";
 import { tripService, type EnrichedTrip } from "@/services/tripService";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -31,6 +32,9 @@ export default function OrganizerDashboardPage() {
   const { user, activeOrganization, isOrganizer, loginAsDemo } = useAuth();
   const { t } = useTranslation();
 
+  const [events, setEvents] = useState<EnrichedEvent[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string>("");
+  const [dashboardData, setDashboardData] = useState<EventDashboardResponse | null>(null);
   const [summary, setSummary] = useState<any>(null);
   const [readyBatches, setReadyBatches] = useState<EnrichedBatch[]>([]);
   const [activeTrips, setActiveTrips] = useState<EnrichedTrip[]>([]);
@@ -44,11 +48,41 @@ export default function OrganizerDashboardPage() {
     }
     setIsLoading(true);
     try {
-      const [summaryData, batchesData, tripsData] = await Promise.all([
-        adminService.getOrganizerDashboardSummary(activeOrganization.id),
+      const [evList, batchesData, tripsData] = await Promise.all([
+        eventService.getAll({ organizationId: activeOrganization.id, includeDrafts: true }),
         batchService.getByOrganization(activeOrganization.id),
         tripService.getByOrganization(activeOrganization.id),
       ]);
+
+      setEvents(evList);
+
+      const targetEventId = selectedEventId || (evList.length > 0 ? evList[0].id : "");
+      let dData: EventDashboardResponse | null = null;
+
+      if (targetEventId) {
+        setSelectedEventId(targetEventId);
+        try {
+          dData = await dashboardService.getEventDashboard(targetEventId);
+          setDashboardData(dData);
+        } catch {
+          dData = null;
+        }
+      }
+
+      const summaryData = {
+        eventsCount: evList.length,
+        publishedEventsCount: evList.filter((e) => e.status === "PUBLISHED").length,
+        donationsReceived: dData?.stats.donationsCount ?? 0,
+        donationsPending: 0,
+        batchesTotal: dData?.stats.batchesCount ?? batchesData.length,
+        batchesReady: batchesData.filter((b) => b.status === "READY").length,
+        tripsTotal: dData?.stats.tripsCount ?? tripsData.length,
+        tripsInTransit: tripsData.filter((t) => t.status === "IN_TRANSIT").length,
+        volunteersActive: dData?.stats.applicationsCount ?? 0,
+        volunteersPending: 0,
+        evidencesPendingReview: 0,
+        itemMetrics: dData?.inventorySummary || [],
+      };
 
       setSummary(summaryData);
       setReadyBatches(
@@ -71,7 +105,7 @@ export default function OrganizerDashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeOrganization]);
+  }, [activeOrganization, selectedEventId]);
 
   useEffect(() => {
     loadData();
@@ -177,6 +211,47 @@ export default function OrganizerDashboardPage() {
         </div>
       ) : summary ? (
         <>
+          {/* Real-time Campaign Live Stats Selector */}
+          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-[#1F4D36] flex items-center justify-center shrink-0 border border-emerald-200">
+                <Calendar className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-slate-900 block">
+                  Dữ liệu kiểm toán theo chiến dịch cứu trợ:
+                </span>
+                <span className="text-[11px] text-slate-500 block">
+                  {dashboardData ? `Đang hiển thị thống kê cho: "${dashboardData.eventTitle}"` : "Chọn một chiến dịch để xem chi tiết"}
+                </span>
+              </div>
+            </div>
+
+            {events.length > 0 ? (
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => setSelectedEventId(e.target.value)}
+                  className="px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs"
+                >
+                  {events.map((ev) => (
+                    <option key={ev.id} value={ev.id}>
+                      {ev.title} ({ev.status})
+                    </option>
+                  ))}
+                </select>
+                {dashboardData && (
+                  <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100/70 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shrink-0">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Live Audit BE</span>
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span className="text-xs text-slate-400 italic">Chưa có chiến dịch nào được tạo.</span>
+            )}
+          </div>
+
           {/* 2. Key Metrics Grid (4 thẻ tương tác cốt lõi theo dòng chảy điều phối) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Card 1: Chiến dịch */}

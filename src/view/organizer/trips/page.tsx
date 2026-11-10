@@ -78,7 +78,7 @@ export default function OrganizerTripsPage() {
     setIsLoading(true);
     try {
       const [tList, evs] = await Promise.all([
-        tripService.getByOrganization(activeOrganization.id),
+        tripService.getByOrganization(activeOrganization.id, selectedEventId),
         eventService.getAll({ organizationId: activeOrganization.id, includeDrafts: true }),
       ]);
       setTrips(tList);
@@ -91,7 +91,7 @@ export default function OrganizerTripsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeOrganization, createEventId]);
+  }, [activeOrganization, createEventId, selectedEventId]);
 
   useEffect(() => {
     loadData();
