@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -13,11 +14,12 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { 
   User, ShieldCheck, HandHeart, 
   Package, CheckCircle2, Save, Loader2, UploadCloud,
-  Building2, Plus, X, ExternalLink, ArrowRight, AlertCircle
+  Building2, Plus, X, ExternalLink, ArrowRight, AlertCircle, LogOut
 } from "lucide-react";
 
 export default function ProfilePage() {
-  const { user, session, refreshSession, updateProfile, loginAsDemo } = useAuth();
+  const router = useRouter();
+  const { user, session, refreshSession, updateProfile, loginAsDemo, logout } = useAuth();
   const { showToast } = useToast();
   const { t } = useTranslation();
 
@@ -204,6 +206,21 @@ export default function ProfilePage() {
               </strong>
             </div>
           </div>
+        </div>
+
+        {/* Action Logout */}
+        <div className="shrink-0 pt-2 sm:pt-0">
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              router.push("/login");
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition cursor-pointer border border-rose-200"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Đăng xuất</span>
+          </button>
         </div>
       </div>
 

@@ -217,11 +217,16 @@ export default function LoginPage() {
                 </div>
 
                 {/* Switch link */}
-                <div className="text-right text-xs text-gray-400 pt-0.5">
-                  Chưa có tài khoản?{" "}
-                  <Link href="/register" className="font-bold text-[#F28C1B] hover:underline ml-1">
-                    Đăng ký ngay
+                <div className="flex items-center justify-between text-xs text-gray-400 pt-0.5">
+                  <Link href="/forgot-password" className="text-gray-400 hover:text-[#F28C1B] transition-colors font-medium">
+                    Quên mật khẩu?
                   </Link>
+                  <div>
+                    Chưa có tài khoản?{" "}
+                    <Link href="/register" className="font-bold text-[#F28C1B] hover:underline ml-1">
+                      Đăng ký ngay
+                    </Link>
+                  </div>
                 </div>
 
                 {/* Submit Button */}

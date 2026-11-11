@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Calendar,
   Gift,
@@ -18,6 +18,7 @@ import {
   Globe,
   Search,
   Home,
+  LogOut,
 } from "lucide-react";
 import { Header } from "@/components/sections/Header";
 import { Footer } from "@/components/sections/Footer";
@@ -25,8 +26,9 @@ import { RoleSwitcherBar } from "@/components/layout/RoleSwitcherBar";
 import { useAuth } from "@/hooks/useAuth";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const pathname = usePathname();
-  const { user, isOrganizer, isAdmin, activeOrganization } = useAuth();
+  const { user, isOrganizer, isAdmin, activeOrganization, logout } = useAuth();
 
   const isOrganizerRoute = pathname?.startsWith("/organizer");
   const isAdminRoute = pathname?.startsWith("/admin");
@@ -125,6 +127,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <Search className="w-4 h-4 shrink-0 text-slate-400" />
                     <span>Tra cứu vận đơn</span>
                   </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      logout();
+                      router.push("/login");
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition w-full cursor-pointer mt-2"
+                  >
+                    <LogOut className="w-4 h-4 shrink-0 text-rose-500" />
+                    <span>Đăng xuất</span>
+                  </button>
                 </div>
               </>
             ) : (
@@ -176,6 +190,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <Calendar className="w-4 h-4 shrink-0 text-slate-400" />
                     <span>Kiểm toán chiến dịch</span>
                   </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      logout();
+                      router.push("/login");
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition w-full cursor-pointer mt-2"
+                  >
+                    <LogOut className="w-4 h-4 shrink-0 text-rose-500" />
+                    <span>Đăng xuất</span>
+                  </button>
                 </div>
               </>
             )}

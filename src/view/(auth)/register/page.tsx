@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,11 +17,14 @@ import {
   EyeOff,
   Sparkles,
   ArrowRight,
+  RotateCw,
+  X,
+  KeyRound,
 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { sendRegisterOtp, verifyAndRegister } = useAuth();
   const { showToast } = useToast();
 
   const [isOrganization, setIsOrganization] = useState(false);
@@ -39,6 +42,22 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+
+  // OTP Modal states
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isResendingOtp, setIsResendingOtp] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
+  // Cooldown countdown
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
 
   const validate = () => {
     const err: Record<string, string> = {};
@@ -76,18 +95,61 @@ export default function RegisterPage() {
     if (!validate()) return;
 
     setIsLoading(true);
-    const result = await register({
+    const result = await sendRegisterOtp(formData.email.trim());
+    setIsLoading(false);
+
+    if (result.success) {
+      showToast(result.message || "Mã OTP xác thực đã được gửi tới email của bạn!", "success");
+      setOtp("");
+      setOtpError("");
+      setIsOtpModalOpen(true);
+      setCountdown(60);
+    } else {
+      showToast(result.error || "Không thể gửi mã xác thực. Vui lòng kiểm tra lại email.", "error");
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (countdown > 0 || isResendingOtp) return;
+    setIsResendingOtp(true);
+    const result = await sendRegisterOtp(formData.email.trim());
+    setIsResendingOtp(false);
+
+    if (result.success) {
+      showToast("Đã gửi lại mã OTP mới tới email của bạn!", "success");
+      setCountdown(60);
+    } else {
+      showToast(result.error || "Gửi lại OTP thất bại.", "error");
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp.trim()) {
+      setOtpError("Vui lòng nhập mã OTP 6 số");
+      return;
+    }
+    if (!/^\d{6}$/.test(otp.trim())) {
+      setOtpError("Mã OTP phải gồm đúng 6 chữ số");
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    setOtpError("");
+    const result = await verifyAndRegister({
       fullName: formData.fullName.trim(),
       email: formData.email.trim(),
       phone: formData.phone.trim(),
       password: formData.password,
+      otp: otp.trim(),
       isOrganization,
       organizationName: formData.organizationName.trim(),
       organizationDescription: formData.organizationDescription.trim(),
     });
-    setIsLoading(false);
+    setIsVerifyingOtp(false);
 
     if (result.success) {
+      setIsOtpModalOpen(false);
       showToast("Tạo tài khoản thành công! Chào mừng bạn đến với OpenAid.", "success");
       if (isOrganization) {
         router.push("/organizer/dashboard");
@@ -95,7 +157,8 @@ export default function RegisterPage() {
         router.push("/events");
       }
     } else {
-      showToast(result.error || "Đăng ký thất bại", "error");
+      setOtpError(result.error || "Xác thực OTP thất bại");
+      showToast(result.error || "Xác thực OTP thất bại", "error");
     }
   };
 
@@ -441,7 +504,7 @@ export default function RegisterPage() {
                   disabled={isLoading}
                   className="w-full py-3 px-6 rounded-2xl font-extrabold text-xs sm:text-sm text-white bg-gradient-to-r from-[#1F4D36] to-[#286446] hover:from-[#173b29] hover:to-[#21533a] shadow-lg shadow-emerald-950/40 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  <span>{isLoading ? "Đang tạo tài khoản..." : "Hoàn Tất Đăng Ký"}</span>
+                  <span>{isLoading ? "Đang gửi mã xác thực..." : "Tạo Tài Khoản OpenAid"}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
@@ -449,6 +512,99 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+
+      {/* OTP Verification Modal */}
+      {isOtpModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="relative w-full max-w-md bg-[#1a2030] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl">
+            {/* Close / Cancel Button */}
+            <button
+              type="button"
+              onClick={() => setIsOtpModalOpen(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-white transition p-1 rounded-lg hover:bg-white/5 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-3">
+                <KeyRound className="w-6 h-6 text-[#F28C1B]" />
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-white">Xác Thực Email</h3>
+              <p className="text-xs text-gray-300 mt-2 leading-relaxed">
+                Hệ thống đã gửi mã OTP 6 số đến địa chỉ: <br />
+                <span className="font-semibold text-emerald-400">{formData.email}</span>
+              </p>
+            </div>
+
+            {/* OTP Form */}
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div className="space-y-1">
+                <div
+                  className={`bg-[#222836] border rounded-2xl p-3 relative flex flex-col items-center justify-center transition-all ${
+                    otpError
+                      ? "border-rose-500/80 ring-2 ring-rose-500/20"
+                      : "border-white/10 focus-within:border-[#F28C1B] focus-within:ring-2 focus-within:ring-[#F28C1B]/20"
+                  }`}
+                >
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                    Nhập mã xác thực 6 số
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      setOtp(val);
+                      if (otpError) setOtpError("");
+                    }}
+                    placeholder="••••••"
+                    className="bg-transparent text-white text-2xl font-extrabold tracking-[10px] text-center outline-none w-full placeholder:text-gray-600 placeholder:tracking-[6px]"
+                    autoFocus
+                  />
+                </div>
+                {otpError && (
+                  <p className="text-[11px] font-semibold text-rose-400 text-center">{otpError}</p>
+                )}
+              </div>
+
+              {/* Resend OTP */}
+              <div className="flex items-center justify-between text-xs px-1 text-gray-400">
+                <span>Không nhận được mã?</span>
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={countdown > 0 || isResendingOtp}
+                  className="inline-flex items-center gap-1 font-semibold text-[#F28C1B] hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer"
+                >
+                  <RotateCw className={`w-3 h-3 ${isResendingOtp ? "animate-spin" : ""}`} />
+                  <span>{countdown > 0 ? `Gửi lại sau (${countdown}s)` : "Gửi lại OTP"}</span>
+                </button>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isVerifyingOtp}
+                className="w-full py-3 px-6 rounded-2xl font-extrabold text-xs sm:text-sm text-white bg-gradient-to-r from-[#1F4D36] to-[#286446] hover:from-[#173b29] hover:to-[#21533a] shadow-lg shadow-emerald-950/40 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+              >
+                <span>{isVerifyingOtp ? "Đang xác thực..." : "Xác Nhận & Hoàn Tất"}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsOtpModalOpen(false)}
+                className="w-full py-1.5 text-xs font-semibold text-gray-400 hover:text-white transition cursor-pointer"
+              >
+                Chỉnh sửa lại thông tin
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

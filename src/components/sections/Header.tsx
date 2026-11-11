@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   HeartHandshake,
   Search,
@@ -29,6 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
 import styles from "@/styles/Header.module.css";
 
 export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
+  const router = useRouter();
   const pathname = usePathname();
   const isAuthPage = isTransparent ?? (pathname === "/login" || pathname === "/register");
   const { user, isOrganizer, isAdmin, logout } = useAuth();
@@ -535,6 +536,14 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
                           onClick={() => {
                             logout();
                             setUserDropdownOpen(false);
+                            if (
+                              pathname.startsWith("/admin") ||
+                              pathname.startsWith("/organizer") ||
+                              pathname.startsWith("/profile") ||
+                              pathname.startsWith("/my")
+                            ) {
+                              router.push("/login");
+                            }
                           }}
                           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition cursor-pointer"
                         >
@@ -817,6 +826,14 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
                     onClick={() => {
                       logout();
                       setMobileMenuOpen(false);
+                      if (
+                        pathname.startsWith("/admin") ||
+                        pathname.startsWith("/organizer") ||
+                        pathname.startsWith("/profile") ||
+                        pathname.startsWith("/my")
+                      ) {
+                        router.push("/login");
+                      }
                     }}
                     className="w-full py-2.5 rounded-full bg-rose-50 text-rose-700 font-bold text-xs text-center cursor-pointer hover:bg-rose-100 transition"
                   >
