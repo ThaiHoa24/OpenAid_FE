@@ -162,7 +162,7 @@ export default function VolunteerApplyPage({
         {
           eventId,
           volunteerRoleId: selectedRole,
-          note: formattedNote,
+          notes: formattedNote,
         },
         user
       );

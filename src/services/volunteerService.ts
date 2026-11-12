@@ -122,14 +122,16 @@ export const volunteerService = {
     payload: {
       eventId: string;
       volunteerRoleId: string;
-      note: string;
+      notes?: string;
+      note?: string;
     },
-    actor: User
+    actor?: User
   ): Promise<EnrichedVolunteerApplication> {
+    const notes = (payload.notes ?? payload.note)?.trim();
     const res = await apiClient.post<any, any>("/volunteers/apply", {
       eventId: payload.eventId,
       volunteerRoleId: payload.volunteerRoleId,
-      note: payload.note?.trim(),
+      notes,
     });
 
     return mapBeVolunteerToEnriched(res);

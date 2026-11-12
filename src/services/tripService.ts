@@ -61,6 +61,7 @@ function mapBeTripToEnriched(t: any): EnrichedTrip {
 
         return {
           id: b.id || tb.batchId,
+          tripBatchId: tb.id,
           batchCode: b.batchCode || "",
           name: b.name || `Lô ${b.batchCode || ""}`,
           eventId: b.eventId || t.eventId,
@@ -345,15 +346,26 @@ export const tripService = {
     },
     actor: User
   ): Promise<EnrichedTrip> {
-    // 1. First get trip details to locate tripBatchId
-    const trip = await this.getById(payload.tripId);
-    if (!trip) {
+    // 1. Lấy dữ liệu chuyến đi gốc từ BE (GET /trips/:id) để tìm đúng TripBatch.id
+    const rawTrip = await apiClient.get<any, any>(`/trips/${payload.tripId}`);
+    if (!rawTrip) {
       throw new Error("Không tìm thấy thông tin chuyến cứu trợ.");
     }
 
-    const tripBatchId = (trip as any).batches?.find(
-      (b: any) => b.id === payload.batchId || (b as any).batchId === payload.batchId
-    )?.id || payload.batchId;
+    const matchedTripBatch = Array.isArray(rawTrip.batches)
+      ? rawTrip.batches.find(
+          (tb: any) =>
+            tb.batchId === payload.batchId ||
+            tb.batch?.id === payload.batchId ||
+            tb.id === payload.batchId
+        )
+      : null;
+
+    if (!matchedTripBatch?.id) {
+      throw new Error("Không tìm thấy lô hàng được phân công trong chuyến đi này.");
+    }
+
+    const tripBatchId = matchedTripBatch.id;
 
     // 2. Post record to BE
     await apiClient.post<any, any>("/distribution/records", {

@@ -26,7 +26,6 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
-    bio: "",
     avatarUrl: "",
   });
 
@@ -89,7 +88,6 @@ export default function ProfilePage() {
       setFormData({
         fullName: user.name || "",
         phone: user.phone || "",
-        bio: user.bio || "",
         avatarUrl: user.avatarUrl || "",
       });
       loadProfileStats();
@@ -185,9 +183,6 @@ export default function ProfilePage() {
             </span>
           </div>
           <p className="text-xs text-slate-500">{user.email}</p>
-          {user.bio && (
-            <p className="text-xs text-slate-600 max-w-lg italic">&quot;{user.bio}&quot;</p>
-          )}
 
           {/* Quick Stats */}
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 pt-3">
@@ -300,19 +295,6 @@ export default function ProfilePage() {
                   />
                 </label>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t("profile.bio")}
-              </label>
-              <textarea
-                rows={3}
-                value={formData.bio}
-                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                placeholder={t("profile.bioPlaceholder")}
-                className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
             </div>
 
             <div className="pt-2">

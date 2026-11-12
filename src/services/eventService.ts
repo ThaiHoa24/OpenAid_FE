@@ -61,7 +61,7 @@ export interface CreateEventInput {
   }[];
 }
 
-function mapBeEventToEnriched(e: any): EnrichedEvent {
+export function mapBeEventToEnriched(e: any): EnrichedEvent {
   const volunteerRoles: VolunteerRole[] = (e.volunteerRoles || []).map((r: any) => ({
     id: r.id,
     eventId: e.id,

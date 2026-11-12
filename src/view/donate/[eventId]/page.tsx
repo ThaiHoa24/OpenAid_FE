@@ -20,9 +20,11 @@ import {
   Sparkles,
   Info,
   Loader2,
+  UploadCloud,
 } from "lucide-react";
 import { eventService, type EnrichedEvent } from "@/services/eventService";
 import { donationService } from "@/services/donationService";
+import { uploadService } from "@/services/uploadService";
 import type { DonationNeed, Donation } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -40,12 +42,15 @@ export default function DonateInKindPage({
   const { showToast } = useToast();
 
   const [event, setEvent] = useState<EnrichedEvent | null>(null);
+  const [donationNeeds, setDonationNeeds] = useState<DonationNeed[]>([]);
   const [selectedNeedId, setSelectedNeedId] = useState<string>("");
   const [quantity, setQuantity] = useState<number | "">("");
   const [donorPhone, setDonorPhone] = useState("");
   const [shippingMethod, setShippingMethod] = useState("DIRECT");
   const [shippingCode, setShippingCode] = useState("");
   const [note, setNote] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -56,27 +61,53 @@ export default function DonateInKindPage({
     let isMounted = true;
     setLoading(true);
 
-    eventService.getById(eventId).then((res) => {
-      if (!isMounted) return;
-      setEvent(res);
-      if (res && res.donationNeeds.length > 0) {
-        setSelectedNeedId(res.donationNeeds[0].id);
-      }
-      if (user?.phone) {
-        setDonorPhone(user.phone);
-      }
-      setLoading(false);
-    }).catch((err) => {
-      console.error(err);
-      if (isMounted) setLoading(false);
-    });
+    Promise.all([
+      eventService.getById(eventId),
+      donationService.getNeedsByEvent(eventId).catch(() => []),
+    ])
+      .then(([res, needsRes]) => {
+        if (!isMounted) return;
+        setEvent(res);
+        const needs =
+          Array.isArray(needsRes) && needsRes.length > 0
+            ? needsRes
+            : res?.donationNeeds || [];
+        setDonationNeeds(needs);
+        if (needs.length > 0) {
+          setSelectedNeedId(needs[0].id);
+        }
+        if (user?.phone) {
+          setDonorPhone(user.phone);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        if (isMounted) setLoading(false);
+      });
 
     return () => {
       isMounted = false;
     };
   }, [eventId, user]);
 
-  const selectedNeed = event?.donationNeeds.find((n) => n.id === selectedNeedId);
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const res = await uploadService.uploadFile(file);
+      setPhotoUrl(res.url);
+      showToast("Tải ảnh kiện hàng thành công!", "success");
+    } catch (err: any) {
+      showToast(err.message || "Không thể tải lên hình ảnh", "error");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const needsList = donationNeeds.length > 0 ? donationNeeds : event?.donationNeeds || [];
+  const selectedNeed = needsList.find((n) => n.id === selectedNeedId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -317,12 +348,12 @@ export default function DonateInKindPage({
                     2. Chọn loại nhu yếu phẩm & Số lượng <span className="text-rose-500">*</span>
                   </h3>
                 </div>
-                <span className="text-[11px] text-slate-500">{event.donationNeeds.length} danh mục cần</span>
+                <span className="text-[11px] text-slate-500">{needsList.length} danh mục cần</span>
               </div>
 
               {/* Danh sách nhu cầu */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {event.donationNeeds.map((need) => {
+                {needsList.map((need) => {
                   const isSelected = selectedNeedId === need.id;
                   const pct = Math.min(100, Math.round((need.pledgedQuantity / need.targetQuantity) * 100));
                   return (
@@ -450,6 +481,36 @@ export default function DonateInKindPage({
                   rows={2}
                   className="w-full p-3 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1F4D36]"
                 />
+              </div>
+
+              <div className="space-y-1.5 pt-1">
+                <label className="text-xs font-bold text-slate-900">
+                  Ảnh chụp kiện hàng quyên góp (không bắt buộc)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={photoUrl}
+                    onChange={(e) => setPhotoUrl(e.target.value)}
+                    placeholder="https://... hoặc tải ảnh kiện hàng từ máy tính"
+                    className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1F4D36]"
+                  />
+                  <label className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer border border-slate-200 shrink-0">
+                    {uploadingPhoto ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-[#1F4D36]" />
+                    ) : (
+                      <UploadCloud className="w-4 h-4 text-[#1F4D36]" />
+                    )}
+                    <span>{uploadingPhoto ? "Đang tải..." : "Tải ảnh"}</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                      disabled={uploadingPhoto}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
 

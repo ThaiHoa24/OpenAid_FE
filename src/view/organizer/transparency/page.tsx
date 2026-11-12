@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useTranslation } from "@/hooks/useTranslation";
+import { eventService, type EnrichedEvent } from "@/services/eventService";
 import { transparencyService, type EnrichedEvidence } from "@/services/transparencyService";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { TransparencyLog } from "@/types";
@@ -19,6 +20,8 @@ export default function OrganizerTransparencyPage() {
   const { t, formatDate, formatDateTime } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<"EVIDENCE" | "LOGS">("EVIDENCE");
+  const [events, setEvents] = useState<EnrichedEvent[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string>("");
   const [evidences, setEvidences] = useState<EnrichedEvidence[]>([]);
   const [logs, setLogs] = useState<TransparencyLog[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
@@ -32,9 +35,25 @@ export default function OrganizerTransparencyPage() {
     }
     setIsLoading(true);
     try {
+      const orgEvents = await eventService.getAll({
+        organizationId: activeOrganization.id,
+        includeDrafts: true,
+      });
+      setEvents(orgEvents);
+      const effectiveEventId = selectedEventId || orgEvents[0]?.id || "";
+      if (!selectedEventId && effectiveEventId) {
+        setSelectedEventId(effectiveEventId);
+      }
+
       const [evList, logList] = await Promise.all([
-        transparencyService.getEvidences({ organizationId: activeOrganization.id }),
-        transparencyService.getLogs({ organizationId: activeOrganization.id }),
+        transparencyService.getEvidences({
+          organizationId: activeOrganization.id,
+          eventId: effectiveEventId || undefined,
+        }),
+        transparencyService.getLogs({
+          organizationId: activeOrganization.id,
+          eventId: effectiveEventId || undefined,
+        }),
       ]);
       setEvidences(evList);
       setLogs(logList);
@@ -43,7 +62,7 @@ export default function OrganizerTransparencyPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeOrganization]);
+  }, [activeOrganization, selectedEventId]);
 
   useEffect(() => {
     loadData();
@@ -108,8 +127,22 @@ export default function OrganizerTransparencyPage() {
           </p>
         </div>
 
-        {/* Tab switch */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
+        {/* Tab switch & Event selector */}
+        <div className="flex flex-wrap items-center gap-3">
+          {events.length > 0 && (
+            <select
+              value={selectedEventId}
+              onChange={(e) => setSelectedEventId(e.target.value)}
+              className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {events.map((ev) => (
+                <option key={ev.id} value={ev.id}>
+                  {ev.title}
+                </option>
+              ))}
+            </select>
+          )}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
           <button
             onClick={() => setActiveTab("EVIDENCE")}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
@@ -128,6 +161,7 @@ export default function OrganizerTransparencyPage() {
             <History className="w-4 h-4 text-emerald-600" />
             {t("organizer.transparency.tabLogs", { count: logs.length })}
           </button>
+          </div>
         </div>
       </div>
 

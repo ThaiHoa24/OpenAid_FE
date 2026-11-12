@@ -57,7 +57,9 @@ export const inventoryService = {
     return [];
   },
 
-  async getByEvent(eventId: string): Promise<EnrichedInventoryItem[]> {
-    return [];
-  },
+  /**
+   * Ghi chú kiến trúc: BE không cung cấp endpoint riêng cho từng sự kiện (/inventory/event/:id).
+   * Để tra cứu tồn kho theo sự kiện, sử dụng getByOrganization(organizationId, eventId)
+   * tương ứng endpoint OA-S4-05: GET /inventory/organization/:orgId?eventId=:eventId.
+   */
 };

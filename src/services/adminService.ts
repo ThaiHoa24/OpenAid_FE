@@ -1,4 +1,5 @@
 import apiClient from "@/lib/api/axiosClient";
+import { mapBeEventToEnriched, type EnrichedEvent } from "./eventService";
 import type {
   Organization,
   OrganizationStatus,
@@ -29,7 +30,7 @@ export const adminService = {
       const [usersRes, orgsRes, eventsRes, logsRes] = await Promise.all([
         apiClient.get<any, any>("/admin/users"),
         apiClient.get<any, any>("/organizations"),
-        apiClient.get<any, any>("/events"),
+        apiClient.get<any, any>("/admin/events").catch(() => apiClient.get<any, any>("/events")),
         apiClient.get<any, any>("/transparency/logs"),
       ]);
       const users = Array.isArray(usersRes) ? usersRes : usersRes?.items || [];
@@ -197,10 +198,75 @@ export const adminService = {
     return res;
   },
 
+  /**
+   * Admin lấy danh sách toàn bộ chiến dịch (mọi trạng thái) từ BE (GET /api/admin/events)
+   */
+  async getAllEvents(filters?: {
+    search?: string;
+    status?: string;
+    skip?: number;
+    take?: number;
+  }): Promise<EnrichedEvent[]> {
+    const params: Record<string, any> = {};
+    if (filters?.skip !== undefined) params.skip = filters.skip;
+    if (filters?.take !== undefined) params.take = filters.take;
+
+    const res = await apiClient.get<any, any>("/admin/events", { params });
+    const items = Array.isArray(res) ? res : res?.items || res?.data || [];
+    let list: EnrichedEvent[] = items.map(mapBeEventToEnriched);
+
+    if (filters?.status && filters.status !== "ALL") {
+      list = list.filter((e) => e.status === filters.status);
+    }
+
+    if (filters?.search && filters.search.trim()) {
+      const q = filters.search.trim().toLowerCase();
+      list = list.filter(
+        (e) =>
+          e.title.toLowerCase().includes(q) ||
+          e.location.toLowerCase().includes(q) ||
+          (e.organization?.name || "").toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  },
+
   async getOrganizerDashboardSummary(
     organizationId?: string,
     eventId?: string
   ) {
+    try {
+      if (eventId && eventId !== "ALL") {
+        const res = await apiClient.get<any, any>(`/dashboard/events/${eventId}`);
+        return {
+          activeVolunteers:
+            Number(res?.stats?.totalVolunteerApproved ?? res?.stats?.applicationsCount ?? 0),
+          totalDonationsReceived: Number(res?.stats?.donationsCount ?? 0),
+          activeTrips: Number(res?.stats?.tripsCount ?? 0),
+          inventoryCount: Array.isArray(res?.inventorySummary) ? res.inventorySummary.length : 0,
+        };
+      }
+
+      if (organizationId && organizationId !== "ALL") {
+        const invRes = await apiClient
+          .get<any, any>(`/inventory/organization/${organizationId}`)
+          .catch(() => []);
+        const inv = Array.isArray(invRes) ? invRes : invRes?.items || [];
+        return {
+          activeVolunteers: 0,
+          totalDonationsReceived: inv.reduce(
+            (sum: number, item: any) => sum + Number(item.receivedTotal ?? item.received ?? 0),
+            0
+          ),
+          activeTrips: 0,
+          inventoryCount: inv.length,
+        };
+      }
+    } catch {
+      // Fallback to zeros if network error
+    }
+
     return {
       activeVolunteers: 0,
       totalDonationsReceived: 0,

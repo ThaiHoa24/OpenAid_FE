@@ -131,11 +131,15 @@ export const transparencyService = {
    */
   async reviewEvidence(
     evidenceId: string,
-    approvePublic: boolean,
-    actor: User
+    approve: boolean,
+    noteOrActor?: string | User,
+    note?: string
   ): Promise<EnrichedEvidence> {
+    const resolvedNote =
+      typeof noteOrActor === "string" ? noteOrActor : note;
     const res = await apiClient.patch<any, any>(`/evidence/${evidenceId}/review`, {
-      status: approvePublic ? "APPROVED" : "REJECTED",
+      status: approve ? "APPROVED" : "REJECTED",
+      note: resolvedNote?.trim(),
     });
 
     return mapBeEvidence(res);
@@ -253,6 +257,33 @@ export const transparencyService = {
     donationId?: string;
   }): Promise<TransparencyLog[]> {
     try {
+      if (filters?.eventId && filters.eventId !== "ALL") {
+        const res = await apiClient.get<any, any>("/transparency/timeline", {
+          params: {
+            entityType: "EVENT",
+            entityId: filters.eventId,
+          },
+        });
+        const items = Array.isArray(res) ? res : res?.items || [];
+        return items.map((l: any) => ({
+          id: l.id,
+          actorId: l.actorId,
+          actorName: l.actor?.fullName || l.actorName || "Hệ thống",
+          actorRole: l.actor?.systemRole || "USER",
+          action: l.action,
+          description: l.details
+            ? typeof l.details === "string"
+              ? l.details
+              : JSON.stringify(l.details)
+            : l.description || "",
+          newStatus: l.newStatus,
+          entityType: l.entityType,
+          entityId: l.entityId,
+          eventId: l.eventId || filters.eventId,
+          timestamp: l.createdAt || l.timestamp,
+        }));
+      }
+
       const res = await apiClient.get<any, any>("/transparency/logs");
       const items = Array.isArray(res) ? res : res?.items || [];
       return items.map((l: any) => ({
@@ -261,7 +292,11 @@ export const transparencyService = {
         actorName: l.actor?.fullName || l.actorName || "Hệ thống",
         actorRole: l.actor?.systemRole || "USER",
         action: l.action,
-        description: l.details ? JSON.stringify(l.details) : l.description || "",
+        description: l.details
+          ? typeof l.details === "string"
+            ? l.details
+            : JSON.stringify(l.details)
+          : l.description || "",
         newStatus: l.newStatus,
         entityType: l.entityType,
         entityId: l.entityId,

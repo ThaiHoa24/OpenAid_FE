@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useTranslation } from "@/hooks/useTranslation";
+import { adminService } from "@/services/adminService";
 import { eventService, type EnrichedEvent } from "@/services/eventService";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { 
@@ -25,10 +26,9 @@ export default function AdminEventsPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const list = await eventService.getAll({
+      const list = await adminService.getAllEvents({
         search,
         status: filterStatus === "ALL" ? undefined : filterStatus,
-        includeDrafts: true,
       });
       setEvents(list);
     } catch (err) {

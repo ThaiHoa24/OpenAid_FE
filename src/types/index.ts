@@ -16,7 +16,6 @@ export interface User {
   phoneNumber?: string;
   phone: string; // Synced alias to phoneNumber
   avatarUrl?: string;
-  bio?: string;
   systemRole: SystemRole;
   isActive?: boolean;
   status: UserStatus; // Synced alias: isActive ? 'ACTIVE' : 'DISABLED'
@@ -466,22 +465,4 @@ export interface PublicTrackingResult {
     uploadedAt: string;
   }[];
   timeline: TransparencyLog[];
-}
-
-export interface MockDatabase {
-  users: User[];
-  organizations: Organization[];
-  organizationMembers: OrganizationMember[];
-  events: Event[];
-  volunteerRoles: VolunteerRole[];
-  volunteerApplications: VolunteerApplication[];
-  donationNeeds: DonationNeed[];
-  donations: Donation[];
-  inventory: InventoryItem[];
-  batches: DonationBatch[];
-  trips: DistributionTrip[];
-  distributionPoints: DistributionPoint[];
-  distributionRecords: DistributionRecord[];
-  evidences: Evidence[];
-  transparencyLogs: TransparencyLog[];
 }

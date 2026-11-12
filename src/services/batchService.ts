@@ -198,10 +198,11 @@ export const batchService = {
     },
     actor: User
   ): Promise<EnrichedBatch> {
+    const note = payload.note?.trim() || "Đối soát hoàn tất";
     const res = await apiClient.post<any, any>(`/batches/${batchId}/reconcile`, {
       returnedQuantity: Number(payload.returnedQuantity || 0),
       lostQuantity: Number(payload.lostQuantity || 0),
-      notes: payload.note?.trim(),
+      note,
     });
 
     return mapBeBatchToEnriched(res);

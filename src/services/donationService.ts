@@ -134,19 +134,17 @@ export const donationService = {
    */
   async create(
     payload: {
-      eventId: string;
+      eventId?: string;
       donationNeedId: string;
       quantity: number;
       note?: string;
       photoUrl?: string;
     },
-    donor: User
+    donor?: User
   ): Promise<EnrichedDonation> {
     const res = await apiClient.post<any, any>("/donations", {
-      eventId: payload.eventId,
       donationNeedId: payload.donationNeedId,
       quantity: Number(payload.quantity),
-      notes: payload.note?.trim(),
     });
 
     return mapBeDonationToEnriched(res);
@@ -176,7 +174,7 @@ export const donationService = {
   ): Promise<EnrichedDonation> {
     const updated = await apiClient.patch<any, any>(`/donations/${donationId}/receipt`, {
       status: "REJECTED",
-      notes: reason?.trim() || "Không đúng tiêu chuẩn quyên góp",
+      rejectionReason: reason?.trim() || "Không đúng tiêu chuẩn quyên góp",
     });
 
     return mapBeDonationToEnriched(updated);

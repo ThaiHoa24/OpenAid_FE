@@ -53,7 +53,6 @@ interface AuthContextValue {
   updateProfile: (updates: {
     fullName: string;
     phone: string;
-    bio?: string;
     avatarUrl?: string;
   }) => Promise<{ success: boolean; error?: string }>;
 }
@@ -241,7 +240,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateProfile = useCallback(async (updates: {
     fullName: string;
     phone: string;
-    bio?: string;
     avatarUrl?: string;
   }) => {
     if (!session?.user) return { success: false, error: "Chưa đăng nhập" };
@@ -249,7 +247,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const updated = await authService.updateProfile(session.user.id, {
         name: updates.fullName,
         phone: updates.phone,
-        bio: updates.bio,
         avatarUrl: updates.avatarUrl,
       });
       setSession((prev) => prev ? { ...prev, user: updated } : null);

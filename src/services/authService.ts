@@ -29,7 +29,6 @@ function mapBeUserToFe(beUser: any): User {
     phoneNumber,
     phone: phoneNumber,
     avatarUrl: beUser.avatarUrl,
-    bio: beUser.bio || "",
     systemRole: beUser.systemRole || "USER",
     isActive,
     status: isActive ? "ACTIVE" : "DISABLED",
@@ -418,12 +417,11 @@ export const authService = {
 
   async updateProfile(
     userId: string,
-    updates: { name: string; phone: string; bio?: string; avatarUrl?: string }
+    updates: { name: string; phone: string; avatarUrl?: string }
   ): Promise<User> {
     const updatedBe = await apiClient.patch<any, any>("/users/profile", {
       fullName: updates.name.trim(),
       phoneNumber: updates.phone.trim(),
-      bio: updates.bio?.trim(),
       avatarUrl: updates.avatarUrl?.trim(),
     });
 
