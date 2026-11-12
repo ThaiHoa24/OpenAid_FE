@@ -199,37 +199,47 @@ export const adminService = {
   },
 
   /**
-   * Admin lấy danh sách toàn bộ chiến dịch (mọi trạng thái) từ BE (GET /api/admin/events)
+   * ADM-05: Admin lấy danh sách toàn bộ chiến dịch (mọi trạng thái) từ BE (GET /api/admin/events)
    */
   async getAllEvents(filters?: {
     search?: string;
     status?: string;
+    organizationId?: string;
     skip?: number;
     take?: number;
   }): Promise<EnrichedEvent[]> {
     const params: Record<string, any> = {};
     if (filters?.skip !== undefined) params.skip = filters.skip;
     if (filters?.take !== undefined) params.take = filters.take;
+    if (filters?.search?.trim()) params.search = filters.search.trim();
+    if (filters?.organizationId && filters.organizationId !== "ALL") {
+      params.organizationId = filters.organizationId;
+    }
+    if (filters?.status && filters.status !== "ALL") {
+      params.status = filters.status;
+    }
 
     const res = await apiClient.get<any, any>("/admin/events", { params });
     const items = Array.isArray(res) ? res : res?.items || res?.data || [];
-    let list: EnrichedEvent[] = items.map(mapBeEventToEnriched);
+    return items.map(mapBeEventToEnriched);
+  },
 
-    if (filters?.status && filters.status !== "ALL") {
-      list = list.filter((e) => e.status === filters.status);
-    }
-
-    if (filters?.search && filters.search.trim()) {
-      const q = filters.search.trim().toLowerCase();
-      list = list.filter(
-        (e) =>
-          e.title.toLowerCase().includes(q) ||
-          e.location.toLowerCase().includes(q) ||
-          (e.organization?.name || "").toLowerCase().includes(q)
-      );
-    }
-
-    return list;
+  /**
+   * ADM-06: Kiểm duyệt sự kiện cấp hệ thống (PATCH /api/admin/events/:id/status)
+   */
+  async moderateEventStatus(
+    eventId: string,
+    status: "PUBLISHED" | "CLOSED" | "CANCELLED" | "SUSPENDED" | "DRAFT",
+    reason?: string
+  ): Promise<EnrichedEvent> {
+    const updated = await apiClient.patch<any, any>(
+      `/admin/events/${eventId}/status`,
+      {
+        status,
+        ...(reason?.trim() ? { reason: reason.trim() } : {}),
+      }
+    );
+    return mapBeEventToEnriched(updated);
   },
 
   async getOrganizerDashboardSummary(

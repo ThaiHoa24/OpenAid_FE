@@ -130,7 +130,7 @@ export const donationService = {
   },
 
   /**
-   * Tạo phiếu quyên góp mới qua BE (POST /api/donations)
+   * Tạo phiếu quyên góp mới qua BE (POST /api/donations) - Hỗ trợ DON-IMG (photoUrl & notes)
    */
   async create(
     payload: {
@@ -138,13 +138,19 @@ export const donationService = {
       donationNeedId: string;
       quantity: number;
       note?: string;
+      donorNote?: string;
       photoUrl?: string;
     },
     donor?: User
   ): Promise<EnrichedDonation> {
+    const noteText = (payload.donorNote || payload.note)?.trim();
+    const photoUrl = payload.photoUrl?.trim();
+
     const res = await apiClient.post<any, any>("/donations", {
       donationNeedId: payload.donationNeedId,
       quantity: Number(payload.quantity),
+      ...(photoUrl ? { photoUrl } : {}),
+      ...(noteText ? { notes: noteText } : {}),
     });
 
     return mapBeDonationToEnriched(res);

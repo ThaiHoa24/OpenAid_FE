@@ -228,7 +228,7 @@ export default function OrganizerDashboardPage() {
             </div>
 
             {events.length > 0 ? (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={selectedEventId}
                   onChange={(e) => setSelectedEventId(e.target.value)}
@@ -240,6 +240,40 @@ export default function OrganizerDashboardPage() {
                     </option>
                   ))}
                 </select>
+                {selectedEventId && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        dashboardService.exportEventReport(selectedEventId, "csv")
+                      }
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-colors cursor-pointer"
+                      title="Xuất báo cáo nghiệm thu CSV (REP-01)"
+                    >
+                      Xuất CSV
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        dashboardService.exportEventReport(selectedEventId, "excel")
+                      }
+                      className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#1F4D36] border border-emerald-200 text-xs font-semibold transition-colors cursor-pointer"
+                      title="Xuất báo cáo nghiệm thu Excel (REP-01)"
+                    >
+                      Xuất Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        dashboardService.exportEventReport(selectedEventId, "pdf")
+                      }
+                      className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-semibold transition-colors cursor-pointer"
+                      title="In / Lưu PDF báo cáo nghiệm thu (REP-01)"
+                    >
+                      Xuất PDF
+                    </button>
+                  </div>
+                )}
                 {dashboardData && (
                   <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100/70 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shrink-0">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />

@@ -169,10 +169,11 @@ export const eventService = {
     if (filters?.area && filters.area !== "ALL") {
       params.area = filters.area;
     }
+    if (filters?.organizationId && filters.organizationId !== "ALL") {
+      params.organizationId = filters.organizationId;
+    }
     if (filters?.status && filters.status !== "ALL") {
       params.status = filters.status;
-    } else if (filters?.includeDrafts) {
-      // Backend defaults to PUBLISHED if no status; if drafts needed, pass explicitly if supported
     }
 
     const beEvents = await apiClient.get<any, any[]>("/events", { params });
@@ -433,5 +434,78 @@ export const eventService = {
    */
   async removeDonationNeed(eventId: string, needId: string): Promise<any> {
     return apiClient.delete(`/events/${eventId}/donation-needs/${needId}`);
+  },
+
+  /**
+   * EVT-SUB: Cập nhật độc lập 1 nhu cầu quyên góp (PATCH /api/events/donation-needs/:id)
+   */
+  async updateDonationNeed(
+    needId: string,
+    payload: {
+      itemTypeId?: string;
+      unitId?: string;
+      targetQuantity?: number;
+      notes?: string;
+    }
+  ): Promise<any> {
+    return apiClient.patch(`/events/donation-needs/${needId}`, {
+      ...(payload.itemTypeId ? { itemTypeId: payload.itemTypeId } : {}),
+      ...(payload.unitId ? { unitId: payload.unitId } : {}),
+      ...(payload.targetQuantity !== undefined
+        ? { targetQuantity: Number(payload.targetQuantity) }
+        : {}),
+      ...(payload.notes !== undefined ? { notes: payload.notes?.trim() } : {}),
+    });
+  },
+
+  /**
+   * EVT-SUB: Xóa độc lập 1 nhu cầu quyên góp theo ID (DELETE /api/events/donation-needs/:id)
+   */
+  async removeDonationNeedById(needId: string): Promise<any> {
+    return apiClient.delete(`/events/donation-needs/${needId}`);
+  },
+
+  /**
+   * EVT-SUB: Lấy danh sách vị trí TNV của sự kiện (GET /api/events/:id/volunteer-roles)
+   */
+  async getVolunteerRoles(eventId: string): Promise<any[]> {
+    return apiClient.get(`/events/${eventId}/volunteer-roles`);
+  },
+
+  /**
+   * EVT-SUB: Thêm độc lập 1 vị trí TNV vào sự kiện (POST /api/events/:id/volunteer-roles)
+   */
+  async addVolunteerRole(
+    eventId: string,
+    payload: { name: string; quantity: number; description?: string }
+  ): Promise<any> {
+    return apiClient.post(`/events/${eventId}/volunteer-roles`, {
+      name: payload.name.trim(),
+      quantity: Number(payload.quantity),
+      description: payload.description?.trim(),
+    });
+  },
+
+  /**
+   * EVT-SUB: Cập nhật độc lập 1 vị trí TNV (PATCH /api/events/volunteer-roles/:id)
+   */
+  async updateVolunteerRole(
+    roleId: string,
+    payload: { name?: string; quantity?: number; description?: string }
+  ): Promise<any> {
+    return apiClient.patch(`/events/volunteer-roles/${roleId}`, {
+      ...(payload.name !== undefined ? { name: payload.name.trim() } : {}),
+      ...(payload.quantity !== undefined ? { quantity: Number(payload.quantity) } : {}),
+      ...(payload.description !== undefined
+        ? { description: payload.description?.trim() }
+        : {}),
+    });
+  },
+
+  /**
+   * EVT-SUB: Xóa độc lập 1 vị trí TNV (DELETE /api/events/volunteer-roles/:id)
+   */
+  async removeVolunteerRole(roleId: string): Promise<any> {
+    return apiClient.delete(`/events/volunteer-roles/${roleId}`);
   },
 };

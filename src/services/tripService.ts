@@ -320,13 +320,27 @@ export const tripService = {
     actor: User,
     note?: string
   ): Promise<EnrichedTrip> {
+    const payload: Record<string, any> = {
+      status: nextStatus,
+    };
+    if (nextStatus === "SKIPPED") {
+      payload.skippedReason =
+        note?.trim() || "Tạm hoãn điểm dừng theo điều kiện thực địa";
+    } else if (note?.trim()) {
+      payload.skippedReason = note.trim();
+    }
+
     const res = await apiClient.patch<any, any>(
       `/distribution/points/${pointId}/status`,
-      {
-        status: nextStatus,
-        notes: note?.trim(),
-      }
+      payload
     );
+
+    if (res?.tripId) {
+      const refreshedTrip = await this.getById(res.tripId);
+      if (refreshedTrip) {
+        return refreshedTrip;
+      }
+    }
 
     return mapBeTripToEnriched(res);
   },
