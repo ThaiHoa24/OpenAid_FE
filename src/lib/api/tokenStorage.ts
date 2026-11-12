@@ -62,7 +62,7 @@ export const tokenStorage = {
   clear(): void {
     if (typeof window === "undefined") return;
     try {
-      // 1. Xóa toàn bộ token khỏi LocalStorage (giữ nguyên 'openaid-language', 'openaid_mock_db_v1'...)
+      // 1. Xóa toàn bộ token khỏi LocalStorage (giữ nguyên các cài đặt khác như 'openaid-language')
       AUTH_STORAGE_KEYS.forEach((key) => {
         window.localStorage.removeItem(key);
       });

@@ -108,10 +108,6 @@ export default function OrganizerEventDetailPage({
 
   useEffect(() => {
     loadData();
-
-    const handleDataChange = () => loadData();
-    window.addEventListener("openaid-db-changed", handleDataChange);
-    return () => window.removeEventListener("openaid-db-changed", handleDataChange);
   }, [loadData]);
 
   // Handle Edit Event

@@ -46,10 +46,6 @@ export default function OrganizerVolunteersPage() {
 
   useEffect(() => {
     loadData();
-
-    const handleDataChange = () => loadData();
-    window.addEventListener("openaid-db-changed", handleDataChange);
-    return () => window.removeEventListener("openaid-db-changed", handleDataChange);
   }, [loadData]);
 
   const handleReview = async (applicationId: string, status: "APPROVED" | "REJECTED") => {

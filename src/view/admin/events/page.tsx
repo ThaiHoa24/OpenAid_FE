@@ -41,10 +41,6 @@ export default function AdminEventsPage() {
 
   useEffect(() => {
     loadData();
-
-    const handleDataChange = () => loadData();
-    window.addEventListener("openaid-db-changed", handleDataChange);
-    return () => window.removeEventListener("openaid-db-changed", handleDataChange);
   }, [loadData]);
 
   const handleStatusChange = async (

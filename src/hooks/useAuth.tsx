@@ -19,7 +19,6 @@ interface AuthContextValue {
   activeOrganization: Organization | null;
   setActiveOrganizationId: (orgId: string) => void;
   isLoading: boolean;
-  dbVersion: number;
   refreshSession: () => void;
   logout: () => void;
   login: (email: string, password?: string) => Promise<{ success: boolean; user?: User; error?: string }>;
@@ -66,7 +65,6 @@ const AuthContext = createContext<AuthContextValue>({
   activeOrganization: null,
   setActiveOrganizationId: () => {},
   isLoading: true,
-  dbVersion: 0,
   refreshSession: () => {},
   logout: () => {},
   login: async () => ({ success: false, error: "Not initialized" }),
@@ -87,7 +85,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<SessionContext | null>(null);
   const [activeOrgId, setActiveOrgId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
-  const [dbVersion, setDbVersion] = useState(0);
 
   const loadSession = useCallback(() => {
     const ctx = authService.getSessionContext();
@@ -273,7 +270,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         activeOrganization,
         setActiveOrganizationId: setActiveOrgId,
         isLoading,
-        dbVersion,
         refreshSession: loadSession,
         logout,
         login,

@@ -55,7 +55,7 @@ export default function EventDetailPage({
   const eventId = resolvedParams.id;
 
   const router = useRouter();
-  const { user, isOrganizer, isAdmin, activeOrganization, dbVersion } = useAuth();
+  const { user, isOrganizer, isAdmin, activeOrganization } = useAuth();
   const { showToast } = useToast();
   const { t, formatDate, formatDateTime } = useTranslation();
 
@@ -106,7 +106,7 @@ export default function EventDetailPage({
     return () => {
       isMounted = false;
     };
-  }, [eventId, dbVersion]);
+  }, [eventId]);
 
   // Handle Volunteer Apply
   const handleOpenVolunteerModal = (role: VolunteerRole) => {

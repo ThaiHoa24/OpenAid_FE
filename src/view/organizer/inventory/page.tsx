@@ -44,10 +44,6 @@ export default function OrganizerInventoryPage() {
 
   useEffect(() => {
     loadData();
-
-    const handleDataChange = () => loadData();
-    window.addEventListener("openaid-db-changed", handleDataChange);
-    return () => window.removeEventListener("openaid-db-changed", handleDataChange);
   }, [loadData]);
 
   if (!user || (!isOrganizer && user.systemRole !== "ADMIN")) {

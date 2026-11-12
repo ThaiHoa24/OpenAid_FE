@@ -66,10 +66,6 @@ export default function OrganizerBatchesPage() {
 
   useEffect(() => {
     loadData();
-
-    const handleDataChange = () => loadData();
-    window.addEventListener("openaid-db-changed", handleDataChange);
-    return () => window.removeEventListener("openaid-db-changed", handleDataChange);
   }, [loadData]);
 
   // Load eligible donations when creating

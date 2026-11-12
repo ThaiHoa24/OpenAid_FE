@@ -1,7 +1,6 @@
 import type { SupportCategory } from "@/types";
 
 export const STORAGE_KEYS = {
-  DB: "openaid_mock_db_v1",
   SESSION: "openaid_auth_session_v1",
 } as const;
 
@@ -13,58 +12,6 @@ export const SUPPORT_CATEGORIES: SupportCategory[] = [
   "Community Support",
   "Emergency Shelter",
 ];
-
-export const AREAS = [
-  "Da Nang",
-  "Quang Nam",
-  "Thua Thien Hue",
-  "Quang Tri",
-  "Quang Ngai",
-  "Kon Tum",
-] as const;
-
-export const STANDARD_GOODS = [
-  { itemType: "Rice", defaultUnit: "kg" },
-  { itemType: "Drinking Water", defaultUnit: "bottles" },
-  { itemType: "Instant Noodles", defaultUnit: "boxes" },
-  { itemType: "Blankets", defaultUnit: "pieces" },
-  { itemType: "First Aid Kits", defaultUnit: "kits" },
-  { itemType: "Canned Food", defaultUnit: "boxes" },
-  { itemType: "Warm Clothing", defaultUnit: "sets" },
-  { itemType: "School Supplies", defaultUnit: "kits" },
-  { itemType: "Hygiene Kits", defaultUnit: "kits" },
-  { itemType: "Hot Meals", defaultUnit: "meals" },
-] as const;
-
-export const STANDARD_UNITS = [
-  "kg",
-  "bottles",
-  "boxes",
-  "pieces",
-  "kits",
-  "sets",
-  "bags",
-  "meals",
-] as const;
-
-export const STANDARD_VOLUNTEER_ROLES = [
-  {
-    name: "Transportation",
-    description: "Drive or assist with loading and transporting relief goods to distribution points.",
-  },
-  {
-    name: "Distribution",
-    description: "Coordinate on-site distribution, hand out relief packages, and record evidence.",
-  },
-  {
-    name: "Packing & Sorting",
-    description: "Verify received goods at warehouse, sort items by unit, and prepare batches.",
-  },
-  {
-    name: "Medical & Logistics Support",
-    description: "Provide basic first aid support and coordinate safety at relief checkpoints.",
-  },
-] as const;
 
 export const STATUS_BADGE_STYLES: Record<string, string> = {
   // Event
@@ -97,34 +44,3 @@ export const STATUS_BADGE_STYLES: Record<string, string> = {
   ARRIVED: "bg-sky-50 text-sky-700 border-sky-200",
   SKIPPED: "bg-slate-100 text-slate-600 border-slate-200",
 };
-
-export const DEMO_ACCOUNTS = [
-  {
-    label: "Organizer (Helping Hands Da Nang)",
-    email: "organizer@openaid.demo",
-    password: "123456",
-    roleBadge: "ORGANIZER",
-    description: "Create events, confirm donations, manage inventory, batches & trips",
-  },
-  {
-    label: "Normal User (Volunteer & Donor)",
-    email: "user@openaid.demo",
-    password: "123456",
-    roleBadge: "USER",
-    description: "Apply as volunteer, donate goods, check-in/out & upload trip evidence",
-  },
-  {
-    label: "Volunteer B (Distribution Member)",
-    email: "volunteer.b@openaid.demo",
-    password: "123456",
-    roleBadge: "USER",
-    description: "Second volunteer account for testing multi-volunteer trip assignments",
-  },
-  {
-    label: "Platform Admin",
-    email: "admin@openaid.demo",
-    password: "123456",
-    roleBadge: "ADMIN",
-    description: "Approve organizations, manage users & moderate events",
-  },
-] as const;

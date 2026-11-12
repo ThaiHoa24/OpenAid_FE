@@ -241,47 +241,4 @@ export const adminService = {
     );
     return mapBeEventToEnriched(updated);
   },
-
-  async getOrganizerDashboardSummary(
-    organizationId?: string,
-    eventId?: string
-  ) {
-    try {
-      if (eventId && eventId !== "ALL") {
-        const res = await apiClient.get<any, any>(`/dashboard/events/${eventId}`);
-        return {
-          activeVolunteers:
-            Number(res?.stats?.totalVolunteerApproved ?? res?.stats?.applicationsCount ?? 0),
-          totalDonationsReceived: Number(res?.stats?.donationsCount ?? 0),
-          activeTrips: Number(res?.stats?.tripsCount ?? 0),
-          inventoryCount: Array.isArray(res?.inventorySummary) ? res.inventorySummary.length : 0,
-        };
-      }
-
-      if (organizationId && organizationId !== "ALL") {
-        const invRes = await apiClient
-          .get<any, any>(`/inventory/organization/${organizationId}`)
-          .catch(() => []);
-        const inv = Array.isArray(invRes) ? invRes : invRes?.items || [];
-        return {
-          activeVolunteers: 0,
-          totalDonationsReceived: inv.reduce(
-            (sum: number, item: any) => sum + Number(item.receivedTotal ?? item.received ?? 0),
-            0
-          ),
-          activeTrips: 0,
-          inventoryCount: inv.length,
-        };
-      }
-    } catch {
-      // Fallback to zeros if network error
-    }
-
-    return {
-      activeVolunteers: 0,
-      totalDonationsReceived: 0,
-      activeTrips: 0,
-      inventoryCount: 0,
-    };
-  },
 };

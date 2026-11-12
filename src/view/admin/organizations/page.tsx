@@ -37,10 +37,6 @@ export default function AdminOrganizationsPage() {
 
   useEffect(() => {
     loadData();
-
-    const handleDataChange = () => loadData();
-    window.addEventListener("openaid-db-changed", handleDataChange);
-    return () => window.removeEventListener("openaid-db-changed", handleDataChange);
   }, [loadData]);
 
   const handleUpdateStatus = async (orgId: string, nextStatus: any) => {

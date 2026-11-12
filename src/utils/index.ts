@@ -1,34 +1,6 @@
 import { STATUS_BADGE_STYLES } from "@/constants";
 import type { InventoryItem } from "@/types";
 
-export function delay(ms = 260): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export function generateId(prefix = "id"): string {
-  const rand = Math.random().toString(36).substring(2, 8);
-  const time = Date.now().toString(36).slice(-4);
-  return `${prefix}-${time}-${rand}`;
-}
-
-/**
- * Generates a unique, non-sequential Tracking ID like DON-2026-7K3Q9X
- */
-export function generateTrackingId(existingIds: string[] = []): string {
-  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-  let code = "";
-  let attempts = 0;
-  do {
-    let suffix = "";
-    for (let i = 0; i < 6; i++) {
-      suffix += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    code = `DON-2026-${suffix}`;
-    attempts++;
-  } while (existingIds.includes(code) && attempts < 50);
-  return code;
-}
-
 export function formatDateTime(dateStr?: string): string {
   if (!dateStr) return "—";
   try {

@@ -459,20 +459,6 @@ export const eventService = {
   },
 
   /**
-   * EVT-SUB: Xóa độc lập 1 nhu cầu quyên góp theo ID (DELETE /api/events/donation-needs/:id)
-   */
-  async removeDonationNeedById(needId: string): Promise<any> {
-    return apiClient.delete(`/events/donation-needs/${needId}`);
-  },
-
-  /**
-   * EVT-SUB: Lấy danh sách vị trí TNV của sự kiện (GET /api/events/:id/volunteer-roles)
-   */
-  async getVolunteerRoles(eventId: string): Promise<any[]> {
-    return apiClient.get(`/events/${eventId}/volunteer-roles`);
-  },
-
-  /**
    * EVT-SUB: Thêm độc lập 1 vị trí TNV vào sự kiện (POST /api/events/:id/volunteer-roles)
    */
   async addVolunteerRole(

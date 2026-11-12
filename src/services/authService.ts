@@ -403,9 +403,7 @@ export const authService = {
         window.sessionStorage.removeItem("currentUser");
         window.sessionStorage.removeItem("currentMemberships");
 
-        // LƯU Ý: Giữ nguyên các dữ liệu bắt buộc KHÔNG ĐƯỢC XÓA:
-        // - "openaid-language": Ngôn ngữ ứng dụng người dùng đã chọn
-        // - STORAGE_KEYS.DB ("openaid_mock_db_v1"): Cài đặt cơ sở dữ liệu mock
+        // LƯU Ý: Giữ nguyên ngôn ngữ ứng dụng người dùng đã chọn ("openaid-language")
 
         // 4. Phát sự kiện đồng bộ trạng thái đăng xuất trên toàn bộ giao diện
         window.dispatchEvent(new Event("openaid-auth-changed"));
