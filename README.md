@@ -43,7 +43,7 @@ TẦNG HỆ THỐNG (SystemRole)
 * **Quản Trị Viên (`ADMIN`)**: Duyệt hồ sơ thành lập tổ chức (`APPROVED` / `REJECTED` / `SUSPENDED`), quản lý khóa/mở khóa tài khoản user, kiểm duyệt và xuất báo cáo toàn bộ chiến dịch, giám sát audit logs.
 * **Ban Tổ Chức (`ORGANIZER`)**: Quản lý hồ sơ tổ chức & thành viên; tạo/phát động/đóng chiến dịch; tiếp nhận hiện vật (`RECEIVED` / `REJECTED`); theo dõi sổ cái kho bãi (`NFR05`); đóng gói lô hàng (`DRAFT` → `READY` → đối soát `reconcile`); lập & điều phối chuyến xe (`SCHEDULED` → `PREPARING` → `IN_TRANSIT` → `COMPLETED`); duyệt đơn TNV & thẩm định ảnh bằng chứng công khai.
 * **Người Dùng (`USER`)**: Khám phá chiến dịch, ứng tuyển TNV (tự động nhận diện trạng thái đơn đã nộp), cam kết quyên góp hiện vật kèm ảnh kiện hàng, nhận Tracking ID, hủy cam kết `PENDING`, xem lịch trình chuyến xe được phân công và Check-in thực địa.
-* **Thanh chuyển vai trò nhanh (`RoleSwitcherBar`)**: Hỗ trợ đăng nhập nhanh 1-Click các tài khoản demo (`admin@openaid.demo`, `organizer@openaid.demo`, `user@openaid.demo`, mật khẩu `123456` theo `OpenAid_BE/prisma/seed.mjs`).
+* **Tài khoản demo (seed)**: Có thể tự đăng nhập tại `/login` với các tài khoản mẫu (`admin@openaid.demo`, `organizer@openaid.demo`, `user@openaid.demo`, mật khẩu `123456` theo `OpenAid_BE/prisma/seed.mjs`) hoặc đăng ký tài khoản mới tại `/register`.
 
 ---
 
@@ -163,7 +163,7 @@ OpenAid_FE/
 │   ├── components/
 │   │   ├── animation/             # SmoothScroll (Lenis)
 │   │   ├── auth/                  # RoleGuard
-│   │   ├── layout/                # AppShell, RoleSwitcherBar
+│   │   ├── layout/                # AppShell
 │   │   ├── sections/              # Header, Footer, Hero, FeaturedEvents, StatsBar...
 │   │   └── ui/                    # Badge, Button, ConfirmModal, ProgressBar, StatusBadge, ToastProvider
 │   ├── constants/                 # Hằng số & style badges

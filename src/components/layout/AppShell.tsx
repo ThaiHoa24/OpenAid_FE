@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { Header } from "@/components/sections/Header";
 import { Footer } from "@/components/sections/Footer";
-import { RoleSwitcherBar } from "@/components/layout/RoleSwitcherBar";
 import { useAuth } from "@/hooks/useAuth";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -60,9 +59,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           : "min-h-screen flex flex-col bg-[#FAF9F6] text-[#1C2B24] overflow-x-clip"
       }
     >
-      {/* Temporary Role Switcher Toolbar */}
-      {!isAuthRoute && <RoleSwitcherBar />}
-
       {/* Top Main Navigation (Sticky Header 4.1) */}
       <Header isTransparent={isAuthRoute} />
 
