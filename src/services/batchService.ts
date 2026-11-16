@@ -33,22 +33,30 @@ function mapBeBatchToEnriched(b: any): EnrichedBatch {
     b.unit?.name || (typeof b.unit === "string" ? b.unit : "") || "Phần";
   const trip = b.assignments?.[0]?.trip || b.currentTrip;
 
+  const rawTotal = b.quantity ?? b.totalQuantity ?? 0;
   const totalQuantity =
-    typeof b.totalQuantity === "object"
-      ? b.totalQuantity?.toNumber?.() ?? Number(b.totalQuantity)
-      : Number(b.totalQuantity ?? 0);
-  const distributedQuantity =
-    typeof b.distributedQuantity === "object"
-      ? b.distributedQuantity?.toNumber?.() ?? Number(b.distributedQuantity)
-      : Number(b.distributedQuantity ?? 0);
+    typeof rawTotal === "object"
+      ? rawTotal?.toNumber?.() ?? Number(rawTotal)
+      : Number(rawTotal);
+  const rawRet = b.returnedQuantity ?? 0;
   const returnedQuantity =
-    typeof b.returnedQuantity === "object"
-      ? b.returnedQuantity?.toNumber?.() ?? Number(b.returnedQuantity)
-      : Number(b.returnedQuantity ?? 0);
+    typeof rawRet === "object"
+      ? rawRet?.toNumber?.() ?? Number(rawRet)
+      : Number(rawRet);
+  const rawLost = b.lostQuantity ?? 0;
   const lostQuantity =
-    typeof b.lostQuantity === "object"
-      ? b.lostQuantity?.toNumber?.() ?? Number(b.lostQuantity)
-      : Number(b.lostQuantity ?? 0);
+    typeof rawLost === "object"
+      ? rawLost?.toNumber?.() ?? Number(rawLost)
+      : Number(rawLost);
+  const rawDist = b.distributedQuantity;
+  const distributedQuantity =
+    rawDist !== undefined
+      ? typeof rawDist === "object"
+        ? rawDist?.toNumber?.() ?? Number(rawDist)
+        : Number(rawDist)
+      : b.status === "DISTRIBUTED"
+      ? Math.max(0, totalQuantity - returnedQuantity - lostQuantity)
+      : 0;
   const remainingQuantity = Math.max(
     0,
     totalQuantity - distributedQuantity - returnedQuantity - lostQuantity
@@ -171,6 +179,14 @@ export const batchService = {
       eventId: payload.eventId,
       donationIds: payload.donationIds,
     });
+
+    if (payload.initialStatus === "READY" && res?.id) {
+      try {
+        return await this.markBatchReady(res.id, actor);
+      } catch {
+        // Fallback to returning created DRAFT batch if markBatchReady fails
+      }
+    }
 
     return mapBeBatchToEnriched(res);
   },

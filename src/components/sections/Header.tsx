@@ -36,7 +36,20 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const [activeNav, setActiveNav] = useState<string>("home");
+
+  // Derive activeNav directly from the current pathname
+  const activeNav =
+    pathname === "/"
+      ? "home"
+      : pathname.startsWith("/events")
+      ? "events"
+      : pathname.startsWith("/how-it-works")
+      ? "how-it-works"
+      : pathname.startsWith("/track")
+      ? "track"
+      : pathname.startsWith("/about")
+      ? "about"
+      : "";
 
   // Rubber Segment references and geometry
   const navRef = useRef<HTMLElement>(null);
@@ -107,66 +120,25 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
     RoleIcon = User;
   }
 
-  // Real-time ScrollSpy & Header state
+  // Header Scroll Shadow
   useEffect(() => {
     const handleScroll = () => {
-      const scrollY = window.scrollY;
-      setIsScrolled(scrollY > 15);
-
-      // Only perform section scrollspy on homepage
-      if (pathname === "/") {
-        const triggerPoint = Math.min(260, window.innerHeight * 0.35);
-        const howItWorksElem = document.getElementById("how-it-works");
-        const featuredElem = document.getElementById("featured-events");
-
-        const howItWorksTop = howItWorksElem
-          ? howItWorksElem.getBoundingClientRect().top
-          : Infinity;
-        const featuredTop = featuredElem
-          ? featuredElem.getBoundingClientRect().top
-          : Infinity;
-
-        if (howItWorksTop <= triggerPoint) {
-          setActiveNav("how-it-works");
-        } else if (featuredTop <= triggerPoint) {
-          setActiveNav("events");
-        } else {
-          setActiveNav("home");
-        }
-      }
+      setIsScrolled(window.scrollY > 15);
     };
 
-    if (pathname !== "/") {
-      if (pathname.startsWith("/track")) setActiveNav("track");
-      else if (pathname.startsWith("/about")) setActiveNav("about");
-      else if (pathname.startsWith("/events")) setActiveNav("events");
-      else setActiveNav("");
-    } else {
-      // Run once on mount / load
-      handleScroll();
-    }
-
+    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [pathname]);
+  }, []);
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, link: typeof NAV_LINKS[number]) => {
     if (link.key === "home" || link.href === "/") {
       if (pathname === "/") {
         e.preventDefault();
         window.scrollTo({ top: 0, behavior: "smooth" });
-        setActiveNav("home");
         if (window.location.hash) {
           window.history.pushState(null, "", "/");
         }
-      }
-    } else if (link.href.startsWith("/#") && pathname === "/") {
-      e.preventDefault();
-      const targetId = link.href.replace("/#", "");
-      const elem = document.getElementById(targetId);
-      if (elem) {
-        elem.scrollIntoView({ behavior: "smooth" });
-        setActiveNav(link.key);
       }
     }
   };
@@ -189,7 +161,6 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
             if (pathname === "/") {
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: "smooth" });
-              setActiveNav("home");
             }
           }}
           className="flex items-center gap-3 group"

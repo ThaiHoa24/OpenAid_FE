@@ -68,6 +68,7 @@ export default function EventDetailPage({
   const [event, setEvent] = useState<EnrichedEvent | null>(null);
   const [logs, setLogs] = useState<TransparencyLog[]>([]);
   const [trips, setTrips] = useState<EnrichedTrip[]>([]);
+  const [myApplication, setMyApplication] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "volunteer" | "donations" | "transparency" | "trips">("overview");
 
@@ -92,21 +93,36 @@ export default function EventDetailPage({
 
     Promise.all([
       eventService.getById(eventId),
-      transparencyService.getLogs({ eventId }),
-      tripService.getByOrganization(undefined, eventId),
-    ]).then(([evt, eventLogs, eventTrips]) => {
-      if (isMounted) {
-        setEvent(evt);
-        setLogs(eventLogs);
-        setTrips(eventTrips || []);
-        setLoading(false);
-      }
-    });
+      transparencyService.getLogs({ eventId }).catch(() => []),
+      tripService.getByOrganization(undefined, eventId).catch(() => []),
+      user && !isOrganizer && !isAdmin
+        ? volunteerService.getByUser(user.id).catch(() => [])
+        : Promise.resolve([]),
+    ])
+      .then(([evt, eventLogs, eventTrips, myApps]) => {
+        if (isMounted) {
+          setEvent(evt);
+          setLogs(eventLogs || []);
+          setTrips(eventTrips || []);
+          const found = Array.isArray(myApps)
+            ? myApps.find((a) => a.eventId === eventId)
+            : null;
+          setMyApplication(found || null);
+        }
+      })
+      .catch((err) => {
+        console.error("Lỗi khi tải thông tin chiến dịch:", err);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
 
     return () => {
       isMounted = false;
     };
-  }, [eventId]);
+  }, [eventId, user, isOrganizer, isAdmin]);
 
   // Handle Volunteer Apply
   const handleOpenVolunteerModal = (role: VolunteerRole) => {
@@ -134,7 +150,7 @@ export default function EventDetailPage({
 
     setSubmittingVolunteer(true);
     try {
-      await volunteerService.apply(
+      const created = await volunteerService.apply(
         {
           eventId: event.id,
           volunteerRoleId: selectedRole.id,
@@ -142,6 +158,7 @@ export default function EventDetailPage({
         },
         user
       );
+      setMyApplication(created);
       setVolunteerModalOpen(false);
       showToast(
         `${t("common.success")}: ${selectedRole.name}`,
@@ -201,6 +218,9 @@ export default function EventDetailPage({
         user
       );
       setCreatedTrackingId(don.trackingId);
+      eventService.getById(event.id).then((refreshed) => {
+        if (refreshed) setEvent(refreshed);
+      }).catch(() => {});
       showToast(
         `${t("eventDetail.donateSuccessTitle")}: ${don.trackingId}`,
         "success",
@@ -774,6 +794,19 @@ export default function EventDetailPage({
                       <span className="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold">
                         Chế độ kiểm toán
                       </span>
+                    ) : myApplication ? (
+                      <Link
+                        href="/my/activities"
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs transition"
+                      >
+                        {myApplication.volunteerRoleId === role.id
+                          ? myApplication.status === "APPROVED"
+                            ? "Đã được duyệt ✓"
+                            : myApplication.status === "REJECTED"
+                            ? "Đơn đã bị từ chối"
+                            : "Đã nộp đơn (Chờ duyệt)"
+                          : "Đã ứng tuyển vị trí khác"}
+                      </Link>
                     ) : (
                       <button
                         type="button"

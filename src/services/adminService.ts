@@ -42,6 +42,7 @@ export const adminService = {
         activeUsers: users.filter((u: any) => u.isActive !== false).length,
         totalOrganizations: orgs.length,
         verifiedOrganizations: orgs.filter((o: any) => o.status === "APPROVED").length,
+        approvedOrganizations: orgs.filter((o: any) => o.status === "APPROVED").length,
         pendingOrganizations: orgs.filter((o: any) => o.status === "PENDING").length,
         totalEvents: events.length,
         publishedEvents: events.filter((e: any) => e.status === "PUBLISHED").length,
@@ -53,6 +54,7 @@ export const adminService = {
         activeUsers: 0,
         totalOrganizations: 0,
         verifiedOrganizations: 0,
+        approvedOrganizations: 0,
         pendingOrganizations: 0,
         totalEvents: 0,
         publishedEvents: 0,
@@ -87,8 +89,9 @@ export const adminService = {
             status: m.organization?.status || "APPROVED",
           }))
         : [],
-      volunteerApplicationsCount: u.volunteerApplications?.length ?? 0,
-      donationsCount: u.donations?.length ?? 0,
+      volunteerApplicationsCount:
+        u._count?.volunteerApplications ?? u.volunteerApplications?.length ?? 0,
+      donationsCount: u._count?.donations ?? u.donations?.length ?? 0,
     }));
 
     if (search && search.trim()) {
@@ -162,7 +165,11 @@ export const adminService = {
     }));
 
     if (statusFilter && statusFilter !== "ALL") {
-      list = list.filter((o) => o.status === statusFilter);
+      if (statusFilter === "SUSPENDED") {
+        list = list.filter((o) => o.status === "SUSPENDED" || o.status === "REJECTED");
+      } else {
+        list = list.filter((o) => o.status === statusFilter);
+      }
     }
     if (search && search.trim()) {
       const q = search.trim().toLowerCase();

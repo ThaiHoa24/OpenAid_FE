@@ -329,7 +329,7 @@ export default function OrganizerEventsPage() {
                   </>
                 )}
 
-                {ev.status === "CLOSED" && (
+                {ev.status === "CLOSED" && user?.systemRole === "ADMIN" && (
                   <button
                     onClick={() => handleStatusChange(ev.id, "PUBLISHED")}
                     className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"

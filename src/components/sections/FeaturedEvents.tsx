@@ -2,180 +2,202 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Package, MapPin, Users } from "lucide-react";
+import { ArrowRight, MapPin, Heart, Sparkles } from "lucide-react";
 import { eventService, type EnrichedEvent } from "@/services/eventService";
-import { ProgressBar } from "@/components/ui/ProgressBar";
-import { Badge } from "@/components/ui/Badge";
 
-export function FeaturedEvents() {
-  const [events, setEvents] = useState<EnrichedEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&auto=format&fit=crop&q=80";
+
+interface FeaturedEventsProps {
+  campaigns?: EnrichedEvent[];
+  isLoading?: boolean;
+}
+
+export function FeaturedEvents({
+  campaigns: propCampaigns,
+  isLoading: propIsLoading,
+}: FeaturedEventsProps) {
+  const [internalEvents, setInternalEvents] = useState<EnrichedEvent[]>([]);
+  const [internalLoading, setInternalLoading] = useState(true);
+
+  // Nếu cha truyền props thì dùng props, ngược lại tự fetch fallback
+  const isControlled = propCampaigns !== undefined;
+  const isLoading = isControlled ? !!propIsLoading : internalLoading;
+  const events = isControlled ? (propCampaigns || []).slice(0, 3) : internalEvents;
 
   useEffect(() => {
-    eventService.getAll({ status: "PUBLISHED" }).then((res) => {
-      setEvents(res.slice(0, 4));
-      setIsLoading(false);
-    });
-  }, []);
+    if (isControlled) return;
+
+    let isMounted = true;
+    async function fetchEvents() {
+      try {
+        const res = await eventService.getAll({ status: "PUBLISHED" });
+        if (isMounted) {
+          setInternalEvents(Array.isArray(res) ? res.slice(0, 3) : []);
+        }
+      } catch (err) {
+        console.error("Lỗi khi tải danh sách chiến dịch trang chủ:", err);
+        if (isMounted) {
+          setInternalEvents([]);
+        }
+      } finally {
+        if (isMounted) {
+          setInternalLoading(false);
+        }
+      }
+    }
+
+    fetchEvents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isControlled]);
 
   return (
-    <section id="featured-events" className="scroll-mt-20 max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8">
-      {/* Deep Forest Green Floor with Ambient Backlight */}
-      <div className="relative bg-gradient-to-b from-[#0B3B24] via-[#09331F] to-[#062416] rounded-3xl py-6 px-5 sm:py-8 sm:px-8 shadow-card border border-emerald-950/60 space-y-5 sm:space-y-6 overflow-hidden">
-        {/* Soft Ambient Light Glow */}
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Section Header */}
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#4ADE80]">
-              <span className="w-5 h-[2px] bg-[#4ADE80] inline-block" />
-              <span>Chiến Dịch Tiếp Ứng Khẩn Cấp</span>
+    <section className="pt-12 sm:pt-16 lg:pt-20 pb-0 bg-[#F8FBF8]">
+      <div className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Tiêu đề & Nút Xem tất cả */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10 sm:mb-12">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1F4D36]/10 text-[#1F4D36] text-xs font-bold uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-[#F28C1B]" />
+              <span>Cộng đồng chung tay</span>
             </div>
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight leading-snug">
-              Các Hoạt Động Cứu Trợ Đang Phát Động
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#1C2B24] tracking-tight">
+              Chiến dịch đang diễn ra
             </h2>
-            <p className="text-xs sm:text-sm text-[#D1E7DD] max-w-xl leading-normal">
-              Tiếp nhận hiện vật thiết yếu và điều phối tình nguyện viên trực tiếp đến các xã, huyện vùng lũ lụt, sạt lở.
+            <p className="text-sm sm:text-base text-[#5F6F66] max-w-xl">
+              Các hoạt động thiện nguyện đang mở tiếp nhận đóng góp hiện vật và tình nguyện viên.
             </p>
           </div>
 
           <Link
             href="/events"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#4ADE80] to-[#22C55E] hover:from-[#3ec770] hover:to-[#16a34a] text-[#062416] font-bold text-xs shadow-md transition-all self-start sm:self-auto shrink-0 group hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-[#1F4D36] hover:text-[#F28C1B] transition-colors self-start sm:self-auto group py-1"
           >
             <span>Xem tất cả chiến dịch</span>
             <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
           </Link>
         </div>
 
-        {/* 4 Cards Grid */}
+        {/* Danh sách chiến dịch */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            {[1, 2, 3, 4].map((i) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+            {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="bg-white/10 rounded-3xl h-80 animate-pulse border border-white/5"
-              />
+                className="bg-white rounded-3xl overflow-hidden border border-[#E5E7E0] p-4 space-y-4 animate-pulse"
+              >
+                <div className="h-48 rounded-2xl bg-slate-100" />
+                <div className="h-4 bg-slate-100 rounded w-1/3" />
+                <div className="h-6 bg-slate-100 rounded w-4/5" />
+                <div className="h-4 bg-slate-100 rounded w-full" />
+                <div className="h-10 bg-slate-100 rounded-xl mt-4" />
+              </div>
             ))}
           </div>
         ) : events.length === 0 ? (
-          <div className="bg-white/10 p-10 text-center rounded-3xl text-[#D1E7DD] text-xs">
-            Hiện chưa có chiến dịch nào đang mở tiếp nhận.
+          <div className="bg-white rounded-3xl p-10 sm:p-14 text-center border border-[#E5E7E0] shadow-subtle space-y-3.5 max-w-xl mx-auto">
+            <div className="w-13 h-13 rounded-2xl bg-[#EDF8EF] text-[#1F4D36] flex items-center justify-center mx-auto shadow-2xs">
+              <Heart className="w-6 h-6 text-[#1F4D36]" />
+            </div>
+            <h3 className="text-base sm:text-lg font-bold text-[#1C2B24]">
+              Hiện chưa có chiến dịch nào đang mở tiếp nhận
+            </h3>
+            <p className="text-xs sm:text-sm text-[#5F6F66] max-w-md mx-auto leading-relaxed">
+              Các chiến dịch mới sẽ được cập nhật liên tục. Mời bạn quay lại sau hoặc theo dõi thông tin từ ban tổ chức.
+            </p>
+            <div className="pt-2">
+              <Link
+                href="/events"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#1F4D36] text-white text-xs font-bold hover:bg-[#163B29] transition-all shadow-sm hover:shadow-md"
+              >
+                <span>Khám phá kho chiến dịch</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 relative z-10">
-            {events.map((evt) => {
-              const primaryNeed = evt.donationNeeds[0];
-              const neededVolunteers = Math.max(
-                0,
-                evt.totalRequiredVolunteers - evt.totalApprovedVolunteers
-              );
-              const progress =
-                primaryNeed && primaryNeed.targetQuantity > 0
-                  ? Math.min(
-                      100,
-                      Math.round(
-                        ((primaryNeed.receivedQuantity ||
-                          primaryNeed.pledgedQuantity ||
-                          0) /
-                          primaryNeed.targetQuantity) *
-                          100
-                      )
-                    )
-                  : 65;
+          <div
+            className={`grid gap-6 lg:gap-8 ${
+              events.length === 1
+                ? "max-w-md mx-auto grid-cols-1"
+                : events.length === 2
+                ? "max-w-3xl mx-auto grid-cols-1 md:grid-cols-2"
+                : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+            }`}
+          >
+            {events.map((evt) => (
+              <div
+                key={evt.id}
+                className="bg-white rounded-2xl sm:rounded-3xl overflow-hidden border border-[#E5E7E0] shadow-sm hover:shadow-card hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group"
+              >
+                <div>
+                  {/* Ảnh chiến dịch tỉ lệ nhất quán */}
+                  <div className="h-52 w-full relative overflow-hidden bg-slate-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={evt.imageUrl || FALLBACK_IMAGE}
+                      alt={evt.title}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
+                      }}
+                    />
+                  </div>
 
-              return (
-                <Link
-                  key={evt.id}
-                  href={`/events/${evt.id}`}
-                  className="group bg-white rounded-3xl p-3.5 sm:p-4 text-[#1C2B24] shadow-card hover:shadow-2xl transition-all duration-300 flex flex-col justify-between space-y-3 cursor-pointer hover:-translate-y-1.5 border border-slate-100"
-                >
-                  <div className="space-y-3">
-                    {/* Event Photo with Rounded Frame & Category Chip */}
-                    <div className="relative rounded-2xl h-32 sm:h-36 w-full overflow-hidden bg-slate-100 shadow-2xs">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={evt.imageUrl}
-                        alt={evt.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-108"
-                      />
-                      {/* Category Tag */}
-                      <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[10px] font-bold">
-                        {evt.category}
+                  {/* Nội dung chiến dịch */}
+                  <div className="p-6 space-y-2.5">
+                    {evt.location && (
+                      <div className="flex items-center gap-1.5 text-xs text-[#5F6F66]">
+                        <MapPin className="w-3.5 h-3.5 text-[#1F4D36] shrink-0" />
+                        <span className="truncate">{evt.location}</span>
                       </div>
+                    )}
 
-                      {/* Status Badge */}
-                      <div className="absolute top-2.5 right-2.5">
-                        <Badge status="PUBLISHED" showDot pulse />
-                      </div>
+                    <h3 className="text-base sm:text-lg font-bold text-[#1C2B24] line-clamp-2 leading-snug group-hover:text-[#1F4D36] transition-colors">
+                      {evt.title}
+                    </h3>
 
-                      {/* Icon badge */}
-                      <div className="absolute -bottom-1.5 right-2.5 w-8 h-8 rounded-full bg-[#0B3B24] text-[#4ADE80] border-2 border-white flex items-center justify-center shadow-xs">
-                        <Package className="w-4 h-4" />
-                      </div>
-                    </div>
-
-                    {/* Title & Description */}
-                    <div>
-                      <h3 className="font-bold text-sm sm:text-base text-[#1C2B24] group-hover:text-[#1F4D36] transition leading-snug line-clamp-2">
-                        {evt.title}
-                      </h3>
-                      <p className="text-xs text-[#5F6F66] line-clamp-2 mt-1 leading-relaxed">
+                    {evt.description && (
+                      <p className="text-xs sm:text-sm text-[#5F6F66] line-clamp-2 leading-relaxed">
                         {evt.description}
                       </p>
-                    </div>
-
-                    {/* Progress Bar with Percentage */}
-                    <div className="pt-1">
-                      <ProgressBar
-                        value={progress}
-                        showLabel
-                        size="sm"
-                        variant="gradient"
-                      />
-                    </div>
-
-                    {/* Key Metrics Checklist */}
-                    <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
-                      <div className="flex items-center gap-1.5 text-xs text-[#1C2B24]">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#185535] shrink-0" />
-                        <span className="font-bold truncate">
-                          Cần:{" "}
-                          {primaryNeed
-                            ? `${primaryNeed.targetQuantity} ${primaryNeed.unit} ${primaryNeed.itemType}`
-                            : "Hiện vật thiết yếu"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-[#5F6F66]">
-                        <Users className="w-3.5 h-3.5 text-[#185535] shrink-0" />
-                        <span className="truncate">
-                          Tuyển: {neededVolunteers} tình nguyện viên
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-[#5F6F66]">
-                        <MapPin className="w-3.5 h-3.5 text-[#185535] shrink-0" />
-                        <span className="truncate">
-                          Khu vực: {evt.area || "Đà Nẵng"}
-                        </span>
-                      </div>
-                    </div>
+                    )}
                   </div>
+                </div>
 
-                  {/* Card Bottom CTA */}
-                  <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <span className="font-bold text-xs text-[#1F4D36] group-hover:text-[#F28C1B] transition-colors">
-                      Xem chi tiết tiếp nhận
-                    </span>
-                    <div className="w-7 h-7 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center group-hover:bg-[#1F4D36] group-hover:text-white transition-all shadow-2xs">
-                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+                {/* Nút Xem chi tiết */}
+                <div className="p-6 pt-0">
+                  <Link
+                    href={`/events/${evt.id}`}
+                    className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-[#EDF8EF] hover:bg-[#1F4D36] text-[#1F4D36] hover:text-white font-bold text-xs border border-[#1F4D36]/20 hover:border-[#1F4D36] transition-all group/btn"
+                  >
+                    <span>Xem chi tiết</span>
+                    <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
         )}
+      </div>
+
+      {/* Đường lượn sóng nhẹ chuyển tiếp sang Section 4 (#EDF8EF) */}
+      <div className="w-full overflow-hidden leading-none -mb-px pt-12 sm:pt-16">
+        <svg
+          viewBox="0 0 1440 60"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-full h-7 sm:h-11 lg:h-14 block"
+          preserveAspectRatio="none"
+        >
+          <path
+            d="M0,24 C360,48 720,0 1080,24 C1260,36 1380,18 1440,22 L1440,60 L0,60 Z"
+            fill="#EDF8EF"
+          />
+        </svg>
       </div>
     </section>
   );

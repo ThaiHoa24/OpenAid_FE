@@ -1,545 +1,325 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import {
   ArrowRight,
   Search,
   MapPin,
   Calendar,
-  Layers,
-  Leaf,
+  Tag,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck,
-  Package,
-  Copy,
-  Check,
+  Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { ProgressBar } from "@/components/ui/ProgressBar";
-import { AREAS, TIME_FILTERS, SUPPORT_TYPES } from "@/lib/constants";
-import { eventService } from "@/services/eventService";
+import type { EnrichedEvent } from "@/services/eventService";
 
-interface ProjectSlide {
-  id: string;
-  titleLine1: string;
-  titleLine2: string;
-  tagline: string;
-  eyebrow: string;
-  location: string;
-  imageUrl: string;
-  eventId: string;
-  progressPercent?: number;
+interface HeroProps {
+  campaigns?: EnrichedEvent[];
+  isLoading?: boolean;
 }
 
-const CATEGORY_MAP: Record<string, string> = {
-  "Disaster Relief": "Cứu trợ thiên tai",
-  "Food & Water": "Lương thực & Nước sạch",
-  "Community Support": "Hỗ trợ cộng đồng",
-  "Medical Aid": "Vật tư y tế",
-  "Education": "Giáo dục & Học đường",
-  "Emergency Shelter": "Chỗ ở khẩn cấp",
-  "Volunteer": "Tình nguyện viên",
-  "Rice & Food": "Gạo & Lương thực",
-  "Water": "Nước sạch",
-  "Clothes": "Quần áo ấm",
-  "Medical Supplies": "Vật tư y tế",
-  "Study Supplies": "Dụng cụ học tập",
-};
-
-function formatEventToSlide(evt: {
+interface SlideItem {
   id: string;
   title: string;
   description: string;
-  location: string;
-  area: string;
-  imageUrl: string;
-  category: string;
-}): ProjectSlide {
-  let titleLine1 = evt.title;
-  let titleLine2 = "";
-
-  if (evt.title.includes("–")) {
-    const parts = evt.title.split("–");
-    titleLine1 = parts[0].trim();
-    titleLine2 = parts.slice(1).join("–").trim();
-  } else if (evt.title.includes(":")) {
-    const parts = evt.title.split(":");
-    titleLine1 = parts[0].trim();
-    titleLine2 = parts.slice(1).join(":").trim();
-  } else {
-    const words = evt.title.split(" ");
-    if (words.length > 3) {
-      const mid = Math.ceil(words.length / 2);
-      titleLine1 = words.slice(0, mid).join(" ");
-      titleLine2 = words.slice(mid).join(" ");
-    }
-  }
-
-  const categoryVi = CATEGORY_MAP[evt.category] || evt.category;
-
-  return {
-    id: evt.id,
-    eyebrow: `CHIẾN DỊCH • ${categoryVi.toUpperCase()}`,
-    titleLine1,
-    titleLine2: titleLine2 || evt.area || "Việt Nam",
-    tagline: evt.description,
-    location: evt.location || evt.area,
-    imageUrl: (evt.imageUrl || "").replace("w=800", "w=1920") || "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=1920&auto=format&fit=crop&q=85",
-    eventId: evt.id,
-    progressPercent: 78,
-  };
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  category?: string;
+  imageUrl?: string;
+  isDefault?: boolean;
 }
 
-export function Hero() {
-  const router = useRouter();
-  const [slides, setSlides] = useState<ProjectSlide[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-  const [copiedTracking, setCopiedTracking] = useState(false);
+const FALLBACK_BG =
+  "https://images.unsplash.com/photo-1593113598332-cd288d649433?w=1920&auto=format&fit=crop&q=85";
 
-  // Form search states
-  const [area, setArea] = useState("Tất cả khu vực");
-  const [time, setTime] = useState("all");
-  const [supportType, setSupportType] = useState("all");
-  const [keyword, setKeyword] = useState("");
+const DEFAULT_SLIDE: SlideItem = {
+  id: "default",
+  title: "Kết nối sự sẻ chia, lan tỏa yêu thương.",
+  description:
+    "OpenAid kết nối tổ chức thiện nguyện, nhà hảo tâm và tình nguyện viên, giúp mọi người cùng tham gia các chiến dịch hỗ trợ cộng đồng và theo dõi hành trình trao tặng minh bạch.",
+  location: "Toàn quốc",
+  category: "Cộng đồng",
+  imageUrl: FALLBACK_BG,
+  isDefault: true,
+};
 
-  // Load published events from BE API
+function formatDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = d.getDate().toString().padStart(2, "0");
+    const month = (d.getMonth() + 1).toString().padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+export function Hero({ campaigns = [], isLoading = false }: HeroProps) {
+  // Chuẩn bị danh sách slide (tối đa 5 chiến dịch nổi bật, hoặc slide mặc định)
+  const slides: SlideItem[] = useMemo(() => {
+    if (!campaigns || campaigns.length === 0) {
+      return [DEFAULT_SLIDE];
+    }
+
+    return campaigns.slice(0, 5).map((evt) => ({
+      id: evt.id,
+      title: evt.title,
+      description: evt.description || "Chung tay tiếp ứng hiện vật và nguồn lực cho chiến dịch thiện nguyện vì cộng đồng.",
+      location: evt.location || evt.area || "",
+      startDate: evt.startDate,
+      endDate: evt.endDate,
+      category: evt.category || "Cứu trợ",
+      imageUrl: evt.imageUrl || FALLBACK_BG,
+      isDefault: false,
+    }));
+  }, [campaigns]);
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // Tự động chuyển slide mỗi 6 giây (nếu có nhiều hơn 1 slide và không bị pause)
   useEffect(() => {
-    let isMounted = true;
-    eventService
-      .getAll({ status: "PUBLISHED" })
-      .then((events) => {
-        if (!isMounted) return;
-        if (Array.isArray(events) && events.length > 0) {
-          const mappedSlides = events.slice(0, 5).map(formatEventToSlide);
-          setSlides(mappedSlides);
-        }
-      })
-      .catch((err) => {
-        console.error("Lỗi khi tải chiến dịch nổi bật cho hero:", err);
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
+    if (slides.length <= 1 || isPaused) return;
 
-    return () => {
-      isMounted = false;
-    };
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % slides.length);
+    }, 6000);
+
+    return () => clearInterval(timer);
+  }, [slides.length, isPaused]);
+
+  // Điều hướng trước / sau
+  const goToPrev = useCallback(() => {
+    setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
+  }, [slides.length]);
+
+  const goToNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev + 1) % slides.length);
+  }, [slides.length]);
+
+  const goToSlide = useCallback((index: number) => {
+    setCurrentIndex(index);
   }, []);
 
-  const nextSlide = useCallback(() => {
-    if (slides.length <= 1) return;
-    setCurrentSlideIndex((prev) => (prev + 1) % slides.length);
-  }, [slides.length]);
+  const currentSlide = slides[currentIndex] || DEFAULT_SLIDE;
+  const isDefault = currentSlide.isDefault;
 
-  const prevSlide = useCallback(() => {
-    if (slides.length <= 1) return;
-    setCurrentSlideIndex((prev) => (prev - 1 + slides.length) % slides.length);
-  }, [slides.length]);
-
-  // Auto switch slides every 5.5 seconds if multiple slides
-  useEffect(() => {
-    if (slides.length <= 1) return;
-    const timer = setInterval(nextSlide, 5500);
-    return () => clearInterval(timer);
-  }, [slides.length, nextSlide]);
-
-  // Keyboard navigation
-  useEffect(() => {
-    if (slides.length <= 1) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") prevSlide();
-      if (e.key === "ArrowRight") nextSlide();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [slides.length, prevSlide, nextSlide]);
-
-  const currentSlide = slides[currentSlideIndex] || slides[0] || null;
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams();
-    if (area !== "Tất cả khu vực") params.set("area", area);
-    if (time !== "all") params.set("time", time);
-    if (supportType !== "all") params.set("type", supportType);
-    if (keyword.trim()) params.set("q", keyword.trim());
-    router.push(`/events?${params.toString()}`);
-  };
-
-  const copySampleTracking = () => {
-    navigator.clipboard.writeText("DON-2026-7K3Q9X");
-    setCopiedTracking(true);
-    setTimeout(() => setCopiedTracking(false), 2000);
-  };
+  // Trạng thái đang tải dữ liệu ban đầu
+  if (isLoading) {
+    return (
+      <section className="relative w-full overflow-hidden min-h-[calc(100svh-76px)] lg:h-[calc(100svh-76px)] lg:max-h-[850px] bg-[#0A2317] flex items-center">
+        <div className="max-w-[1240px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-16 animate-pulse space-y-6">
+          <div className="w-48 h-6 bg-white/10 rounded-full" />
+          <div className="w-3/4 max-w-xl h-12 bg-white/10 rounded-2xl" />
+          <div className="w-full max-w-lg h-20 bg-white/10 rounded-2xl" />
+          <div className="flex gap-4 pt-4">
+            <div className="w-40 h-12 bg-white/10 rounded-full" />
+            <div className="w-40 h-12 bg-white/10 rounded-full" />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <section className="relative w-full min-h-[calc(100vh-4.75rem)] lg:min-h-[calc(100vh-5rem)] max-h-[880px] flex flex-col justify-between overflow-hidden">
-      {/* Background Section */}
-      <div className="absolute inset-0 z-0">
-        {isLoading ? (
-          <div className="w-full h-full bg-gradient-to-br from-emerald-950/20 via-slate-900/10 to-[#FAF9F6] animate-pulse" />
-        ) : slides.length > 0 ? (
-          slides.map((slide, idx) => (
+    <section
+      className="relative w-full overflow-hidden min-h-[calc(100svh-76px)] lg:h-[calc(100svh-76px)] lg:max-h-[850px] flex items-center"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onFocus={() => setIsPaused(true)}
+      onBlur={() => setIsPaused(false)}
+      aria-roledescription="carousel"
+      aria-label="Chiến dịch thiện nguyện nổi bật"
+    >
+      {/* 1. Background Slideshow (Full-width, fade-in/fade-out 700ms) */}
+      <div className="absolute inset-0 w-full h-full">
+        {slides.map((slide, idx) => {
+          const isActive = idx === currentIndex;
+          return (
             <div
-              key={slide.id}
-              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                idx === currentSlideIndex ? "opacity-100" : "opacity-0 pointer-events-none"
+              key={slide.id || idx}
+              className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out ${
+                isActive ? "opacity-100 z-0" : "opacity-0 pointer-events-none -z-10"
               }`}
+              aria-hidden={!isActive}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={slide.imageUrl}
-                alt={slide.titleLine1}
-                className={`w-full h-full object-cover object-center ${
-                  idx === currentSlideIndex ? "animate-kenburns" : "scale-100"
+                src={slide.imageUrl || FALLBACK_BG}
+                alt={slide.title}
+                className={`w-full h-full object-cover object-center transition-transform duration-[6000ms] ease-out motion-reduce:transform-none ${
+                  isActive ? "scale-105" : "scale-100"
                 }`}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = FALLBACK_BG;
+                }}
               />
             </div>
-          ))
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#0B3B24] via-[#13432B] to-[#FAF9F6]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=1920&auto=format&fit=crop&q=85"
-              alt="Cứu trợ thiện nguyện"
-              className="w-full h-full object-cover object-center opacity-30"
-            />
-          </div>
-        )}
-
-        {/* Dual-layer contrast overlay */}
-        <div className="absolute inset-y-0 left-0 w-full lg:w-[62%] bg-gradient-to-r from-[#FAF9F6]/95 via-[#FAF9F6]/85 sm:via-[#FAF9F6]/60 to-transparent pointer-events-none" />
-        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/25 via-transparent to-transparent pointer-events-none" />
+          );
+        })}
       </div>
 
-      {/* Decorative Organic Leaf Ornament */}
-      <div
-        className="absolute top-4 left-4 sm:top-8 sm:left-10 z-10 pointer-events-none opacity-75 animate-float"
-        aria-hidden="true"
-      >
-        <svg width="70" height="70" viewBox="0 0 100 100" fill="none">
-          <path
-            d="M10 80 C 10 30, 40 10, 80 10 C 60 40, 60 70, 10 80 Z"
-            fill="#5A8D67"
-            fillOpacity="0.3"
-          />
-          <path
-            d="M10 80 Q 45 45 80 10"
-            stroke="#1F4D36"
-            strokeWidth="2.5"
-            strokeOpacity="0.4"
-          />
-        </svg>
-      </div>
+      {/* 2. Hiển thị ảnh trực tiếp, tự nhiên 100%, không dùng lớp phủ toàn màn hình làm tối hay mờ ảnh */}
 
-      {/* Top Half: Content Hero + Floating Glass Status Card */}
-      <div className="relative z-10 max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-2 w-full">
-        {isLoading ? (
-          /* Skeleton Loader */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-pulse">
-            <div className="lg:col-span-8 max-w-3xl space-y-4">
-              <div className="w-40 h-7 rounded-full bg-slate-200/80" />
-              <div className="space-y-2">
-                <div className="w-4/5 h-10 rounded-2xl bg-slate-200/80" />
-                <div className="w-2/3 h-10 rounded-2xl bg-slate-200/60" />
-              </div>
-              <div className="space-y-1.5 pt-2">
-                <div className="w-full max-w-lg h-4 rounded-lg bg-slate-200/60" />
-                <div className="w-3/4 max-w-md h-4 rounded-lg bg-slate-200/50" />
-              </div>
-            </div>
-            <div className="hidden lg:block lg:col-span-4">
-              <div className="bg-white/80 rounded-2xl p-5 border border-slate-200/60 shadow-sm space-y-4 h-40" />
-            </div>
-          </div>
-        ) : currentSlide ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left Text Narrative (8 Cols) */}
-            <div className="lg:col-span-8 max-w-3xl space-y-3 sm:space-y-4">
-              {/* Eyebrow Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/95 backdrop-blur-md border border-[#E5E7E0] shadow-subtle text-[11px] font-bold uppercase tracking-[0.16em] text-[#1F4D36]">
-                <Leaf className="w-3.5 h-3.5 text-[#F28C1B]" />
-                <span>{currentSlide.eyebrow}</span>
-              </div>
-
-              {/* Impactful Title with Accent Highlight */}
-              <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-[46px] font-extrabold tracking-tight text-[#1C2B24] leading-[1.14]">
-                  {currentSlide.titleLine1}
-                  {currentSlide.titleLine2 && (
-                    <>
-                      <br />
-                      <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-[#1F4D36] via-[#143D29] to-[#F28C1B]">
-                        {currentSlide.titleLine2}
-                        <svg
-                          viewBox="0 0 200 24"
-                          preserveAspectRatio="none"
-                          className="absolute -bottom-2 left-0 w-full h-3 text-[#F28C1B] stroke-current fill-none stroke-[5] pointer-events-none"
-                          aria-hidden="true"
-                        >
-                          <path d="M4 18 Q 100 4 196 18" strokeLinecap="round" />
-                        </svg>
-                      </span>
-                    </>
-                  )}
-                </h1>
-              </div>
-
-              {/* Concise Tagline */}
-              <div>
-                <p className="text-xs sm:text-sm text-[#2E4237] leading-relaxed max-w-xl font-medium drop-shadow-xs line-clamp-2">
-                  {currentSlide.tagline}
-                </p>
-              </div>
-            </div>
-
-            {/* Right Floating Glass Card (4 Cols - Desktop only) */}
-            <div className="hidden lg:block lg:col-span-4">
-              <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-[#E5E7E0] shadow-float space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1F4D36]">
-                    <ShieldCheck className="w-4 h-4 text-[#4ADE80]" />
-                    <span>100% Minh Bạch Cấp Lô</span>
-                  </span>
-                  <span className="text-[10px] font-mono text-[#5F6F66] bg-slate-100 px-2 py-0.5 rounded-full font-bold">
-                    {currentSlide.location.split(",")[0]}
-                  </span>
-                </div>
-
-                {/* Progress Bar of Current Event */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-[#1C2B24] flex items-center gap-1">
-                      <Package className="w-3.5 h-3.5 text-[#F28C1B]" />
-                      <span>Tiến độ huy động</span>
-                    </span>
-                    <span className="text-[#1F4D36] font-mono">
-                      {currentSlide.progressPercent || 78}%
-                    </span>
-                  </div>
-                  <ProgressBar value={currentSlide.progressPercent || 78} size="sm" variant="gradient" />
-                </div>
-
-                {/* Sample Tracking Chip */}
-                <div className="pt-2 border-t border-slate-100">
-                  <div className="flex items-center justify-between text-[11px] text-[#5F6F66]">
-                    <span>Mã vận đơn minh chứng:</span>
-                    <button
-                      type="button"
-                      onClick={copySampleTracking}
-                      className="inline-flex items-center gap-1 font-mono font-bold text-[#1F4D36] hover:text-[#F28C1B] transition cursor-pointer"
-                      title="Sao chép mã tra cứu"
-                    >
-                      <span>DON-2026-7K3Q9X</span>
-                      {copiedTracking ? (
-                        <Check className="w-3 h-3 text-emerald-600" />
-                      ) : (
-                        <Copy className="w-3 h-3" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Zero Events Fallback Banner */
-          <div className="max-w-3xl space-y-3 sm:space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/95 backdrop-blur-md border border-[#E5E7E0] shadow-subtle text-[11px] font-bold uppercase tracking-[0.16em] text-[#1F4D36]">
-              <Leaf className="w-3.5 h-3.5 text-[#F28C1B]" />
-              <span>NỀN TẢNG MINH BẠCH • ĐIỀU PHỐI CỨU TRỢ</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-[46px] font-extrabold tracking-tight text-[#1C2B24] leading-[1.14]">
-              Hệ Thống Phân Phối Hiện Vật Cứu Trợ
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1F4D36] via-[#143D29] to-[#F28C1B]">
-                Minh Bạch & Tận Tâm
+      {/* 3. Nội dung chữ nằm trực tiếp trên ảnh, lệch về bên trái, gọn gàng, kéo lên cao và 2 nút nhỏ kéo thấp xuống, dịch sang trái và lên trên ~40px */}
+      <div className="max-w-[1240px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 h-full flex flex-col justify-center relative z-20">
+        <div className="max-w-md sm:max-w-lg lg:max-w-[480px] -translate-y-[56px] sm:-translate-y-[68px] lg:-translate-y-[76px] -translate-x-0 sm:-translate-x-3 md:-translate-x-6 lg:-translate-x-[80px] text-white mr-auto">
+          {/* Khối nội dung chiến dịch (kéo lên trên thêm tầm 30px) */}
+          <div className="-translate-y-[30px] space-y-3 sm:space-y-3.5">
+            {/* Dòng nhỏ phía trên (Eyebrow) */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/50 border border-white/20 text-[#DAF1DE] text-[11px] sm:text-xs font-bold tracking-wider uppercase shadow-md">
+              <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
+              <Sparkles className="w-3.5 h-3.5 text-[#F28C1B]" />
+              <span>
+                {isDefault ? "OPENAID • KẾT NỐI MINH BẠCH" : "OPENAID • CHIẾN DỊCH THIỆN NGUYỆN"}
               </span>
+            </div>
+
+            {/* Tiêu đề chiến dịch (nằm trực tiếp trên ảnh, gọn gàng, đổ bóng sắc nét) */}
+            <h1 className="text-2xl sm:text-3xl lg:text-[2.25rem] font-extrabold text-white tracking-tight leading-[1.2] transition-all duration-500 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+              {currentSlide.title}
             </h1>
-            <p className="text-xs sm:text-sm text-[#2E4237] leading-relaxed max-w-xl font-medium">
-              Kết nối trực tiếp tổ chức từ thiện, nhà hảo tâm và tình nguyện viên thực địa. Mỗi phần quà đều có mã vận đơn truy vết tới từng thôn xóm.
+
+            {/* Mô tả ngắn (gọn hơn, không chiếm không gian ở giữa) */}
+            <p className="text-xs sm:text-sm lg:text-[15px] text-white/95 leading-relaxed line-clamp-3 font-normal max-w-md transition-all duration-500 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+              {currentSlide.description}
             </p>
+
+            {/* Thông tin phụ: Địa điểm, Thời gian, Phân loại */}
+            {!isDefault && (
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                {currentSlide.location && (
+                  <div className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs text-white/95 bg-black/60 px-3 py-1 rounded-full border border-white/20 shadow-xs">
+                    <MapPin className="w-3.5 h-3.5 text-[#22C55E] shrink-0" />
+                    <span className="truncate max-w-[180px] sm:max-w-[220px]">{currentSlide.location}</span>
+                  </div>
+                )}
+                {currentSlide.startDate && (
+                  <div className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs text-white/95 bg-black/60 px-3 py-1 rounded-full border border-white/20 shadow-xs">
+                    <Calendar className="w-3.5 h-3.5 text-[#22C55E] shrink-0" />
+                    <span>
+                      {formatDate(currentSlide.startDate)}
+                      {currentSlide.endDate ? ` – ${formatDate(currentSlide.endDate)}` : ""}
+                    </span>
+                  </div>
+                )}
+                {currentSlide.category && (
+                  <div className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs text-white/95 bg-black/60 px-3 py-1 rounded-full border border-white/20 shadow-xs">
+                    <Tag className="w-3.5 h-3.5 text-[#F28C1B] shrink-0" />
+                    <span>{currentSlide.category}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Hai nút CTA nhỏ lại, kéo thấp xuống phía dưới tầm 50px */}
+          <div className="flex flex-wrap items-center gap-3 pt-5 sm:pt-7 translate-y-[50px]">
+            {isDefault ? (
+              <>
+                <Link
+                  href="/events"
+                  className="inline-flex items-center justify-center gap-2 px-4.5 sm:px-5 py-2.5 rounded-full bg-[#22C55E] hover:bg-[#16A34A] text-[#062416] font-bold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all duration-200 group hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                >
+                  <span>Khám phá chiến dịch</span>
+                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <Link
+                  href="/track"
+                  className="inline-flex items-center justify-center gap-2 px-4.5 sm:px-5 py-2.5 rounded-full bg-black/50 hover:bg-black/75 text-white border border-white/30 font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all duration-200 group hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                >
+                  <Search className="w-3.5 h-3.5 text-[#F28C1B]" />
+                  <span>Theo dõi đóng góp</span>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href={`/events/${currentSlide.id}`}
+                  className="inline-flex items-center justify-center gap-2 px-4.5 sm:px-5 py-2.5 rounded-full bg-[#22C55E] hover:bg-[#16A34A] text-[#062416] font-bold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all duration-200 group hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                >
+                  <span>Xem chiến dịch</span>
+                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <Link
+                  href="/events"
+                  className="inline-flex items-center justify-center gap-2 px-4.5 sm:px-5 py-2.5 rounded-full bg-black/50 hover:bg-black/75 text-white border border-white/30 font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all duration-200 group hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                >
+                  <span>Khám phá tất cả</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-white/70 transition-transform group-hover:translate-x-1" />
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Bottom Half: Action Buttons & Floating 4-Field Search Bar */}
-      <div className="relative z-20 max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 w-full pb-6 sm:pb-8 space-y-3">
-        {/* CTAs & Slide Switcher Tabs: Fixed stable position */}
-        <div className="w-full max-w-[1180px] mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              href={currentSlide ? `/events/${currentSlide.eventId}` : "/events"}
-              variant="primary"
-              size="md"
-              icon={<ArrowRight className="w-4 h-4" />}
-            >
-              Khám phá chiến dịch
-            </Button>
-            <Button
-              href="/track"
-              variant="outline"
-              size="md"
-            >
-              Tra cứu vận đơn
-            </Button>
-          </div>
+      {/* 4. Điều hướng Slideshow (Chỉ hiển thị khi có > 1 slide) */}
+      {slides.length > 1 && (
+        <div className="absolute bottom-9 sm:bottom-12 left-0 right-0 z-30 pointer-events-none">
+          <div className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+            {/* Thanh tiến trình / Dots indicator */}
+            <div className="flex items-center gap-2 pointer-events-auto bg-[#081C13]/85 px-3 py-1.5 rounded-full border border-white/20 shadow-md">
+              {slides.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => goToSlide(i)}
+                  className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                    i === currentIndex
+                      ? "w-8 bg-[#22C55E]"
+                      : "w-2 bg-white/40 hover:bg-white/70"
+                  }`}
+                  aria-label={`Chuyển đến chiến dịch ${i + 1}`}
+                />
+              ))}
+              <span className="text-[11px] font-mono text-white/80 ml-2 font-semibold">
+                0{currentIndex + 1} / 0{slides.length}
+              </span>
+            </div>
 
-          {/* Carousel Controls: Show only when multiple slides exist */}
-          {!isLoading && slides.length > 1 && (
-            <div className="flex items-center gap-2">
+            {/* Nút mũi tên Trước / Tiếp theo */}
+            <div className="flex items-center gap-2 pointer-events-auto">
               <button
                 type="button"
-                onClick={prevSlide}
-                className="w-8 h-8 rounded-full bg-white/90 hover:bg-white text-[#1C2B24] border border-[#E5E7E0] flex items-center justify-center transition shadow-subtle hover:scale-105 cursor-pointer"
+                onClick={goToPrev}
+                className="w-10 h-10 rounded-full bg-[#081C13]/85 hover:bg-black/90 text-white border border-white/25 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-md"
                 aria-label="Chiến dịch trước"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
-
-              {/* Slide Indicator Dots */}
-              <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-full bg-white/80 backdrop-blur-xs border border-[#E5E7E0]">
-                {slides.map((s, idx) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setCurrentSlideIndex(idx)}
-                    className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                      idx === currentSlideIndex
-                        ? "w-7 bg-[#F28C1B] shadow-xs"
-                        : "w-2 bg-slate-300 hover:bg-slate-400"
-                    }`}
-                    aria-label={`Chuyển đến chiến dịch ${idx + 1}`}
-                    title={s.location}
-                  />
-                ))}
-              </div>
-
               <button
                 type="button"
-                onClick={nextSlide}
-                className="w-8 h-8 rounded-full bg-white/90 hover:bg-white text-[#1C2B24] border border-[#E5E7E0] flex items-center justify-center transition shadow-subtle hover:scale-105 cursor-pointer"
+                onClick={goToNext}
+                className="w-10 h-10 rounded-full bg-[#081C13]/85 hover:bg-black/90 text-white border border-white/25 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-md"
                 aria-label="Chiến dịch tiếp theo"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-5 h-5" />
               </button>
             </div>
-          )}
+          </div>
         </div>
+      )}
 
-        {/* Main 4-Field Search Box */}
-        <form
-          onSubmit={handleSearch}
-          className="w-full max-w-[1180px] mx-auto bg-white/95 backdrop-blur-xl rounded-2xl p-2 sm:p-2.5 shadow-float border border-[#E5E7E0] flex flex-col lg:flex-row items-stretch lg:items-center gap-2 transition-all hover:shadow-[0_28px_60px_-12px_rgba(11,59,36,0.25)]"
+      {/* 5. Đường lượn sóng nhẹ chuyển tiếp sang Section 2 (#DAF1DE) */}
+      <div className="absolute bottom-0 left-0 right-0 z-20 w-full overflow-hidden leading-none pointer-events-none -mb-px">
+        <svg
+          viewBox="0 0 1440 60"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-full h-7 sm:h-11 lg:h-14 block"
+          preserveAspectRatio="none"
         >
-          {/* Field 1: Area */}
-          <div className="flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-slate-50 transition cursor-pointer focus-within:ring-2 focus-within:ring-[#1F4D36]/20">
-            <div className="w-7 h-7 rounded-lg bg-[#E6EFE3] text-[#1F4D36] flex items-center justify-center shrink-0">
-              <MapPin className="w-3.5 h-3.5" />
-            </div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <label className="text-[9.5px] font-bold uppercase tracking-wider text-[#5F6F66]">
-                Khu vực
-              </label>
-              <select
-                value={area}
-                onChange={(e) => setArea(e.target.value)}
-                className="w-full bg-transparent text-xs font-bold text-[#1C2B24] focus:outline-none cursor-pointer"
-              >
-                {AREAS.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="hidden lg:block w-[1px] h-6 bg-[#E5E7E0]" />
-
-          {/* Field 2: Time */}
-          <div className="flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-slate-50 transition cursor-pointer focus-within:ring-2 focus-within:ring-[#1F4D36]/20">
-            <div className="w-7 h-7 rounded-lg bg-[#E6EFE3] text-[#1F4D36] flex items-center justify-center shrink-0">
-              <Calendar className="w-3.5 h-3.5" />
-            </div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <label className="text-[9.5px] font-bold uppercase tracking-wider text-[#5F6F66]">
-                Thời gian
-              </label>
-              <select
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full bg-transparent text-xs font-bold text-[#1C2B24] focus:outline-none cursor-pointer"
-              >
-                {TIME_FILTERS.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="hidden lg:block w-[1px] h-6 bg-[#E5E7E0]" />
-
-          {/* Field 3: Support Type */}
-          <div className="flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-slate-50 transition cursor-pointer focus-within:ring-2 focus-within:ring-[#1F4D36]/20">
-            <div className="w-7 h-7 rounded-lg bg-[#E6EFE3] text-[#1F4D36] flex items-center justify-center shrink-0">
-              <Layers className="w-3.5 h-3.5" />
-            </div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <label className="text-[9.5px] font-bold uppercase tracking-wider text-[#5F6F66]">
-                Hình thức hỗ trợ
-              </label>
-              <select
-                value={supportType}
-                onChange={(e) => setSupportType(e.target.value)}
-                className="w-full bg-transparent text-xs font-bold text-[#1C2B24] focus:outline-none cursor-pointer"
-              >
-                {SUPPORT_TYPES.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="hidden lg:block w-[1px] h-6 bg-[#E5E7E0]" />
-
-          {/* Field 4: Keyword */}
-          <div className="flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-slate-50 transition focus-within:ring-2 focus-within:ring-[#1F4D36]/20">
-            <div className="w-7 h-7 rounded-lg bg-[#E6EFE3] text-[#1F4D36] flex items-center justify-center shrink-0">
-              <Search className="w-3.5 h-3.5" />
-            </div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <label className="text-[9.5px] font-bold uppercase tracking-wider text-[#5F6F66]">
-                Từ khóa
-              </label>
-              <input
-                type="text"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder="Bão lũ, gạo, áo ấm, thuốc men..."
-                className="w-full bg-transparent text-xs font-bold text-[#1C2B24] placeholder:text-slate-400 placeholder:font-normal focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Search Button */}
-          <Button
-            type="submit"
-            variant="secondary"
-            size="md"
-            icon={<Search className="w-4 h-4" />}
-            className="w-full lg:w-auto px-6 py-2.5 text-xs font-bold shadow-card"
-          >
-            Tìm kiếm
-          </Button>
-        </form>
+          <path
+            d="M0,24 C360,48 720,0 1080,24 C1260,36 1380,18 1440,22 L1440,60 L0,60 Z"
+            fill="#DAF1DE"
+          />
+        </svg>
       </div>
     </section>
   );

@@ -141,6 +141,7 @@ export default function DonateInKindPage({
           donationNeedId: selectedNeed.id,
           quantity: Number(quantity),
           note: formattedNote,
+          photoUrl: photoUrl.trim() || undefined,
         },
         user
       );

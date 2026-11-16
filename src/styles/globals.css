@@ -29,6 +29,13 @@
   --color-amber-800: #904514;
   --color-amber-900: #763A14;
 
+  /* Mint & Modern Surface Palette */
+  --color-mint-50: #EDF8EF;
+  --color-mint-100: #DAF1DE;
+  --color-mint-200: #B8E4C0;
+  --color-mint-800: #163D2A;
+  --color-main-bg: #F8FBF8;
+
   /* Neutral brand backgrounds */
   --color-brand-cream: #FAF9F6;
   --color-brand-sand: #F4F1EA;
@@ -46,7 +53,7 @@
 }
 
 :root {
-  --background: #FAF9F6;
+  --background: #F8FBF8;
   --foreground: #1C2B24;
   --font-heading: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -140,3 +147,5 @@ h1, h2, h3, h4, h5, h6 {
     scroll-behavior: auto !important;
   }
 }
+
+

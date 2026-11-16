@@ -34,6 +34,8 @@ function mapBeEvidence(e: any): EnrichedEvidence {
     uploadedAt: e.createdAt || e.uploadedAt || new Date().toISOString(),
     reviewedBy: e.reviewedById || e.reviewedBy,
     reviewedAt: e.reviewedAt,
+    trip: e.trip,
+    distributionPoint: e.point || e.distributionPoint,
   };
 }
 

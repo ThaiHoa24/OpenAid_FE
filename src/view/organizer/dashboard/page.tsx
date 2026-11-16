@@ -69,19 +69,31 @@ export default function OrganizerDashboardPage() {
         }
       }
 
+      const itemMetrics = (dData?.donationNeeds || []).map((dn: any) => ({
+        itemType: dn.itemType,
+        unit: dn.unit,
+        needed: Number(dn.targetQuantity ?? 0),
+        pledged: Number(dn.pledgedQuantity ?? 0),
+        received: Number(dn.receivedQuantity ?? 0),
+        available: Number(dn.availableQuantity ?? 0),
+        reserved: Number(dn.reservedQuantity ?? 0),
+        distributed: Number(dn.distributedQuantity ?? 0),
+        lost: Number(dn.lostQuantity ?? 0),
+      }));
+
       const summaryData = {
         eventsCount: evList.length,
         publishedEventsCount: evList.filter((e) => e.status === "PUBLISHED").length,
         donationsReceived: dData?.stats.donationsCount ?? 0,
-        donationsPending: 0,
+        donationsPending: (dData?.stats as any)?.pendingDonationsCount ?? 0,
         batchesTotal: dData?.stats.batchesCount ?? batchesData.length,
         batchesReady: batchesData.filter((b) => b.status === "READY").length,
         tripsTotal: dData?.stats.tripsCount ?? tripsData.length,
         tripsInTransit: tripsData.filter((t) => t.status === "IN_TRANSIT").length,
         volunteersActive: dData?.stats.applicationsCount ?? 0,
-        volunteersPending: 0,
-        evidencesPendingReview: 0,
-        itemMetrics: dData?.inventorySummary || [],
+        volunteersPending: (dData?.stats as any)?.pendingApplicationsCount ?? 0,
+        evidencesPendingReview: (dData?.stats as any)?.pendingEvidencesCount ?? 0,
+        itemMetrics,
       };
 
       setSummary(summaryData);

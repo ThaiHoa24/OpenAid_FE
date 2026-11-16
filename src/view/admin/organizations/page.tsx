@@ -26,7 +26,7 @@ export default function AdminOrganizationsPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const list = await adminService.getAllOrganizations(search, filterStatus);
+      const list = await adminService.getAllOrganizations(filterStatus, search);
       setOrganizations(list);
     } catch (err) {
       console.error(err);
@@ -106,7 +106,7 @@ export default function AdminOrganizationsPage() {
           { key: "ALL", label: `${t("admin.orgs.tabs.all")} (${organizations.length})` },
           { key: "PENDING", label: `${t("admin.orgs.tabs.pending")} (${organizations.filter(o => o.status === "PENDING").length})` },
           { key: "APPROVED", label: `${t("admin.orgs.tabs.approved")} (${organizations.filter(o => o.status === "APPROVED").length})` },
-          { key: "DISABLED", label: `${t("admin.orgs.tabs.disabled")} (${organizations.filter(o => o.status === "DISABLED").length})` },
+          { key: "SUSPENDED", label: `${t("admin.orgs.tabs.disabled")} (${organizations.filter(o => o.status === "SUSPENDED" || o.status === "REJECTED").length})` },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -184,7 +184,7 @@ export default function AdminOrganizationsPage() {
                       {t("admin.orgs.approveOrgBtn")}
                     </button>
                     <button
-                      onClick={() => handleUpdateStatus(org.id, "DISABLED")}
+                      onClick={() => handleUpdateStatus(org.id, "REJECTED")}
                       className="px-4 py-2 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"
                     >
                       <Ban className="w-4 h-4" />
@@ -195,7 +195,7 @@ export default function AdminOrganizationsPage() {
 
                 {org.status === "APPROVED" && (
                   <button
-                    onClick={() => handleUpdateStatus(org.id, "DISABLED")}
+                    onClick={() => handleUpdateStatus(org.id, "SUSPENDED")}
                     className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"
                   >
                     <Ban className="w-4 h-4" />
@@ -203,7 +203,7 @@ export default function AdminOrganizationsPage() {
                   </button>
                 )}
 
-                {org.status === "DISABLED" && (
+                {(org.status === "SUSPENDED" || org.status === "REJECTED") && (
                   <button
                     onClick={() => handleUpdateStatus(org.id, "APPROVED")}
                     className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"

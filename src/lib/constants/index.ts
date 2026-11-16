@@ -12,8 +12,8 @@ export const APP_CONFIG = {
 
 export const NAV_LINKS = [
   { href: "/", label: "Trang chủ", key: "home" },
-  { href: "/#featured-events", label: "Chiến dịch", key: "events" },
-  { href: "/#how-it-works", label: "Quy trình", key: "how-it-works" },
+  { href: "/events", label: "Chiến dịch", key: "events" },
+  { href: "/how-it-works", label: "Quy trình", key: "how-it-works" },
   { href: "/track", label: "Tra cứu vận đơn", key: "track" },
   { href: "/about", label: "Giới thiệu", key: "about" },
 ];

@@ -419,7 +419,7 @@ export default function OrganizerEventDetailPage({
               </>
             )}
 
-            {event.status === "CLOSED" && (
+            {event.status === "CLOSED" && user?.systemRole === "ADMIN" && (
               <button
                 type="button"
                 onClick={() => handleStatusChange("PUBLISHED")}

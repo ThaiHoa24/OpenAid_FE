@@ -150,6 +150,7 @@ export default function OrganizerTripsPage() {
 
     setIsSubmitting(true);
     try {
+      const leaderApp = approvedVolunteers.find((v) => v.userId === leaderUserId);
       await tripService.create({
         name: tripName.trim() || "Chuyến xe cứu trợ",
         eventId: createEventId,
@@ -157,6 +158,7 @@ export default function OrganizerTripsPage() {
         scheduledDate,
         batchIds: selectedBatchIds,
         leaderUserId: leaderUserId || user.id,
+        leaderApplicationId: leaderApp?.id || approvedVolunteers[0]?.id,
         volunteerApplicationIds: approvedVolunteers.map((v) => v.id),
         distributionPoints: distributionPoints.map((pt) => ({
           name: pt.name,

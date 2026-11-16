@@ -114,7 +114,7 @@ export function mapBeEventToEnriched(e: any): EnrichedEvent {
     title: e.title,
     description: e.description || "",
     location: e.location,
-    area: e.location || "Miền Trung",
+    area: e.area || e.location || "Miền Trung",
     startDate: e.startDate,
     endDate: e.endDate || e.startDate,
     status: e.status as EventStatus,
@@ -127,7 +127,7 @@ export function mapBeEventToEnriched(e: any): EnrichedEvent {
     imageUrl:
       e.imageUrl ||
       "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&auto=format&fit=crop&q=80",
-    category: "Disaster Relief",
+    category: (e.category as SupportCategory) || "Disaster Relief",
     organization: e.organization,
     volunteerRoles,
     donationNeeds,

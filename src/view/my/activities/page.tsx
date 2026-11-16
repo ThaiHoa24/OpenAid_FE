@@ -55,12 +55,19 @@ export default function MyActivitiesPage() {
   const loadData = () => {
     if (user) {
       setLoading(true);
-      Promise.all([
-        volunteerService.getByUser(user.id),
-        tripService.getByOrganization(),
-      ])
-        .then(([apps, fetchedTrips]) => {
+      volunteerService
+        .getByUser(user.id)
+        .then(async (apps) => {
           setApplications(apps);
+          const eventIds = Array.from(
+            new Set(apps.map((a) => a.eventId).filter(Boolean))
+          );
+          const tripsResults = await Promise.all(
+            eventIds.map((evId) =>
+              tripService.getByOrganization(undefined, evId).catch(() => [])
+            )
+          );
+          const fetchedTrips = tripsResults.flat();
           setAllTrips(fetchedTrips);
           const volunteerTrips = fetchedTrips.filter(
             (t: any) =>

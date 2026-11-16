@@ -42,14 +42,11 @@ function mapBeTripToEnriched(t: any): EnrichedTrip {
   const batches = Array.isArray(t.batches)
     ? t.batches.map((tb: any) => {
         const b = tb.batch || tb;
+        const rawTotal = b.quantity ?? b.totalQuantity ?? 0;
         const total =
-          typeof b.totalQuantity === "object"
-            ? b.totalQuantity?.toNumber?.() ?? Number(b.totalQuantity)
-            : Number(b.totalQuantity ?? 0);
-        const dist =
-          typeof b.distributedQuantity === "object"
-            ? b.distributedQuantity?.toNumber?.() ?? Number(b.distributedQuantity)
-            : Number(b.distributedQuantity ?? 0);
+          typeof rawTotal === "object"
+            ? rawTotal?.toNumber?.() ?? Number(rawTotal)
+            : Number(rawTotal);
         const ret =
           typeof b.returnedQuantity === "object"
             ? b.returnedQuantity?.toNumber?.() ?? Number(b.returnedQuantity)
@@ -58,6 +55,14 @@ function mapBeTripToEnriched(t: any): EnrichedTrip {
           typeof b.lostQuantity === "object"
             ? b.lostQuantity?.toNumber?.() ?? Number(b.lostQuantity)
             : Number(b.lostQuantity ?? 0);
+        const dist =
+          b.distributedQuantity !== undefined
+            ? typeof b.distributedQuantity === "object"
+              ? b.distributedQuantity?.toNumber?.() ?? Number(b.distributedQuantity)
+              : Number(b.distributedQuantity)
+            : b.status === "DISTRIBUTED"
+            ? Math.max(0, total - ret - lost)
+            : 0;
 
         return {
           id: b.id || tb.batchId,
@@ -140,6 +145,9 @@ function mapBeTripToEnriched(t: any): EnrichedTrip {
               tripId: t.id,
               distributionPointId: p.id,
               batchId: r.tripBatch?.batchId || r.batchId || "",
+              batchCode: r.tripBatch?.batch?.batchCode || "",
+              itemType: r.tripBatch?.batch?.itemType?.name || "",
+              unit: r.tripBatch?.batch?.unit?.name || "",
               distributedQuantity: Number(r.distributedQuantity ?? 0),
               beneficiaryCount: Number(r.beneficiaryCount ?? 0),
               distributedAt: r.createdAt || r.distributedAt,
@@ -148,13 +156,28 @@ function mapBeTripToEnriched(t: any): EnrichedTrip {
             }))
           : [];
 
-        const pEvidences: Evidence[] = Array.isArray(p.records)
-          ? p.records.flatMap((r: any) => (Array.isArray(r.evidence) ? r.evidence : []))
+        const pEvidences: Evidence[] = Array.isArray(p.evidence)
+          ? p.evidence.map((ev: any) => ({
+              ...ev,
+              imageUrl: ev.imageUrl || ev.photoUrl,
+              photoUrl: ev.imageUrl || ev.photoUrl,
+            }))
+          : Array.isArray(p.records)
+          ? p.records.flatMap((r: any) =>
+              Array.isArray(r.evidence)
+                ? r.evidence.map((ev: any) => ({
+                    ...ev,
+                    imageUrl: ev.imageUrl || ev.photoUrl,
+                    photoUrl: ev.imageUrl || ev.photoUrl,
+                  }))
+                : []
+            )
           : [];
 
         return {
           id: p.id,
           tripId: t.id,
+          order: p.position ?? p.order ?? 1,
           name: p.name,
           address: p.location || p.address || "",
           contactPerson: p.contactPerson || "Trưởng thôn / Đại diện chính quyền",
@@ -256,6 +279,7 @@ export const tripService = {
       batchIds: string[];
       volunteerApplicationIds: string[];
       leaderUserId: string;
+      leaderApplicationId?: string;
       distributionPoints: {
         name: string;
         address: string;
@@ -266,8 +290,14 @@ export const tripService = {
     },
     actor: User
   ): Promise<EnrichedTrip> {
+    const resolvedLeaderAppId =
+      payload.leaderApplicationId ||
+      (payload.volunteerApplicationIds.includes(payload.leaderUserId)
+        ? payload.leaderUserId
+        : payload.volunteerApplicationIds[0]);
+
     const volunteers = payload.volunteerApplicationIds.map((appId) => {
-      const isLeader = appId === payload.leaderUserId;
+      const isLeader = appId === resolvedLeaderAppId;
       return {
         applicationId: appId,
         role: isLeader ? "LEADER" : "MEMBER",

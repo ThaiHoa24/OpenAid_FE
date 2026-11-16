@@ -27,8 +27,8 @@ export default function OrganizerBatchesPage() {
   // Create Batch Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createEventId, setCreateEventId] = useState<string>("");
-  const [itemType, setItemType] = useState<string>("Gạo tẻ");
-  const [unit, setUnit] = useState<string>("kg");
+  const [itemType, setItemType] = useState<string>("Gạo cứu trợ");
+  const [unit, setUnit] = useState<string>("Kilogram");
   const [batchName, setBatchName] = useState<string>("");
   const [eligibleDonations, setEligibleDonations] = useState<Donation[]>([]);
   const [selectedDonationIds, setSelectedDonationIds] = useState<string[]>([]);
@@ -77,6 +77,19 @@ export default function OrganizerBatchesPage() {
     const targetEvId = createEventId || events[0].id;
     setCreateEventId(targetEvId);
     setShowCreateModal(true);
+    try {
+      const allEligible = await batchService.getEligibleDonations(targetEvId);
+      if (allEligible.length > 0) {
+        const firstItem = allEligible[0].itemType;
+        const firstUnit = allEligible[0].unit;
+        setItemType(firstItem);
+        setUnit(firstUnit);
+        await fetchEligible(targetEvId, firstItem, firstUnit);
+        return;
+      }
+    } catch {
+      // Fallback to current filter
+    }
     await fetchEligible(targetEvId, itemType, unit);
   };
 

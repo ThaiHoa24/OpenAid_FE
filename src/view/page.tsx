@@ -1,41 +1,88 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Hero } from "@/components/sections/Hero";
-import { FeatureStrip } from "@/components/sections/FeatureStrip";
-import { AboutMission } from "@/components/sections/AboutMission";
-import { StatsBar } from "@/components/sections/StatsBar";
+import { HomeFeatures } from "@/components/sections/HomeFeatures";
 import { FeaturedEvents } from "@/components/sections/FeaturedEvents";
 import { HowItWorks } from "@/components/sections/HowItWorks";
-import { HomeTrackingSection } from "@/components/sections/HomeTrackingSection";
-import { CtaBanner } from "@/components/sections/CtaBanner";
+import { SmoothScroll } from "@/components/animation/SmoothScroll";
+import { eventService, type EnrichedEvent } from "@/services/eventService";
 
 export default function HomePage() {
+  const [campaigns, setCampaigns] = useState<EnrichedEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Tải danh sách chiến dịch 1 lần duy nhất cho toàn bộ trang chủ
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchHomeCampaigns() {
+      try {
+        const res = await eventService.getAll({ status: "PUBLISHED" });
+        if (!isMounted) return;
+
+        if (Array.isArray(res)) {
+          // Lọc các chiến dịch hợp lệ
+          // Ưu tiên chiến dịch đang hoạt động (chưa hết hạn endDate nếu có)
+          const now = Date.now();
+          const activeCampaigns = res.filter((e) => {
+            if (!e.id || !e.title) return false;
+            if (e.status !== "PUBLISHED") return false;
+            if (e.endDate) {
+              const end = new Date(e.endDate).getTime();
+              // Nếu có ngày kết thúc và đã qua hơn 1 ngày thì không ưu tiên
+              if (!isNaN(end) && end < now - 24 * 60 * 60 * 1000) {
+                return false;
+              }
+            }
+            return true;
+          });
+
+          // Nếu có chiến dịch đang diễn ra thì dùng, ngược lại dùng tất cả chiến dịch PUBLISHED hợp lệ
+          const finalCampaigns =
+            activeCampaigns.length > 0
+              ? activeCampaigns
+              : res.filter((e) => e.id && e.title);
+
+          setCampaigns(finalCampaigns);
+        } else {
+          setCampaigns([]);
+        }
+      } catch (err) {
+        console.error("Lỗi khi tải chiến dịch trang chủ:", err);
+        if (isMounted) {
+          setCampaigns([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    fetchHomeCampaigns();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
-    <div className="space-y-6 sm:space-y-8 lg:space-y-10 pb-16 overflow-x-clip">
-      {/* Tầng 1: Hero Banner với ảnh các dự án tự chuyển 5s + Thanh tìm kiếm nổi */}
-      <Hero />
+    <div className="overflow-x-clip relative">
+      {/* Hiệu ứng Lenis Smooth Scrolling mượt mà */}
+      <SmoothScroll />
 
-      {/* Tầng 2: Dải băng 4 Cam kết Minh bạch (Nền xanh rừng thẫm) */}
-      <FeatureStrip />
+      {/* Section 1: Hero Banner toàn màn hình với dynamic slideshow từ API */}
+      <Hero campaigns={campaigns} isLoading={isLoading} />
 
-      {/* Tầng 3: Giới thiệu Sứ mệnh OpenAid + Ảnh thực địa + Khối đánh giá */}
-      <AboutMission />
+      {/* Section 2: Bạn có thể làm gì với OpenAid? (Nền xanh mint #DAF1DE) */}
+      <HomeFeatures />
 
-      {/* Tầng 4: Thống kê chỉ số minh bạch 4 cột tròn đóng khung */}
-      <StatsBar />
+      {/* Section 3: Chiến dịch đang diễn ra (Nền #F8FBF8) */}
+      <FeaturedEvents campaigns={campaigns} isLoading={isLoading} />
 
-      {/* Tầng 5: Chiến dịch cứu trợ trọng điểm (Nền xanh đậm với các thẻ trắng checklist) */}
-      <FeaturedEvents />
-
-      {/* Tầng 6: Quy trình minh bạch khép kín (Khối đóng khung hiện đại) */}
+      {/* Section 4: OpenAid hoạt động như thế nào? (Nền xanh mint nhạt #EDF8EF) */}
       <HowItWorks />
-
-      {/* Tầng 7: Trải nghiệm tra cứu vận đơn trực tuyến với Mockup hành trình */}
-      <HomeTrackingSection />
-
-      {/* Tầng 8: Banner cam kết & kêu gọi hành động chân trang */}
-      <CtaBanner />
     </div>
   );
 }
