@@ -377,12 +377,13 @@ export const tripService = {
 
   /**
    * Ghi nhận kết quả phân phối quà tại điểm cứu trợ qua BE (POST /api/distribution/records)
+   * Yêu cầu tripBatchId trực tiếp để tránh race condition khi lookup batchId
    */
   async recordDistribution(
     payload: {
       tripId: string;
       distributionPointId: string;
-      batchId: string;
+      tripBatchId: string; // TripBatch ID (trip.batches[].id) - truyền trực tiếp từ UI
       distributedQuantity: number;
       beneficiaryCount?: number;
       note?: string;
@@ -390,37 +391,57 @@ export const tripService = {
     },
     actor: User
   ): Promise<EnrichedTrip> {
-    // 1. Lấy dữ liệu chuyến đi gốc từ BE (GET /trips/:id) để tìm đúng TripBatch.id
-    const rawTrip = await apiClient.get<any, any>(`/trips/${payload.tripId}`);
-    if (!rawTrip) {
-      throw new Error("Không tìm thấy thông tin chuyến cứu trợ.");
-    }
-
-    const matchedTripBatch = Array.isArray(rawTrip.batches)
-      ? rawTrip.batches.find(
-          (tb: any) =>
-            tb.batchId === payload.batchId ||
-            tb.batch?.id === payload.batchId ||
-            tb.id === payload.batchId
-        )
-      : null;
-
-    if (!matchedTripBatch?.id) {
-      throw new Error("Không tìm thấy lô hàng được phân công trong chuyến đi này.");
-    }
-
-    const tripBatchId = matchedTripBatch.id;
-
-    // 2. Post record to BE
+    // 1. Post record to BE directly with tripBatchId
     await apiClient.post<any, any>("/distribution/records", {
-      tripBatchId,
+      tripBatchId: payload.tripBatchId,
       distributionPointId: payload.distributionPointId,
       distributedQuantity: Number(payload.distributedQuantity),
       beneficiaryCount: Number(payload.beneficiaryCount || 0),
       notes: payload.note?.trim(),
     });
 
-    // 3. Return fresh trip details
+    // 2. Return fresh trip details
+    const updatedTrip = await this.getById(payload.tripId);
+    if (!updatedTrip) {
+      throw new Error("Không thể tải lại dữ liệu chuyến đi sau khi phân phối.");
+    }
+    return updatedTrip;
+  },
+
+  /**
+   * Atomic: Ghi nhận phân phối + tải lên minh chứng trong 1 request (POST /api/trips/:id/distribute-with-evidence)
+   * Kết hợp tạo biên bản cấp phát và tải lên ảnh minh chứng trong 1 transaction.
+   * Nếu một trong hai thất bại, cả hai rollback.
+   */
+  async recordDistributionWithEvidence(
+    payload: {
+      tripId: string;
+      tripBatchId: string; // TripBatch ID (trip.batches[].id)
+      distributionPointId: string;
+      distributedQuantity: number;
+      beneficiaryCount?: number;
+      notes?: string;
+      imageUrl: string;
+      caption: string;
+      privacyConfirmed: boolean;
+    },
+    actor: User
+  ): Promise<EnrichedTrip> {
+    const res = await apiClient.post<any, any>(
+      `/trips/${payload.tripId}/distribute-with-evidence`,
+      {
+        tripBatchId: payload.tripBatchId,
+        distributionPointId: payload.distributionPointId,
+        distributedQuantity: payload.distributedQuantity.toString(),
+        beneficiaryCount: payload.beneficiaryCount || 0,
+        notes: payload.notes?.trim(),
+        imageUrl: payload.imageUrl.trim(),
+        caption: payload.caption.trim(),
+        privacyConfirmed: payload.privacyConfirmed,
+      }
+    );
+
+    // Return fresh trip details
     const updatedTrip = await this.getById(payload.tripId);
     if (!updatedTrip) {
       throw new Error("Không thể tải lại dữ liệu chuyến đi sau khi phân phối.");

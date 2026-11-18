@@ -127,7 +127,7 @@ export function mapBeEventToEnriched(e: any): EnrichedEvent {
     imageUrl:
       e.imageUrl ||
       "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&auto=format&fit=crop&q=80",
-    category: (e.category as SupportCategory) || "Disaster Relief",
+    category: (e.category as SupportCategory) || "disaster_relief",
     organization: e.organization,
     volunteerRoles,
     donationNeeds,
@@ -154,6 +154,14 @@ export const eventService = {
    */
   async getUnits(): Promise<Unit[]> {
     const list = await apiClient.get<any, Unit[]>("/events/catalogs/units");
+    return Array.isArray(list) ? list : [];
+  },
+
+  /**
+   * Lấy danh mục khu vực từ BE
+   */
+  async getAreas(): Promise<string[]> {
+    const list = await apiClient.get<any, string[]>("/events/catalogs/areas");
     return Array.isArray(list) ? list : [];
   },
 

@@ -112,12 +112,12 @@ export const vi = {
   },
 
   categories: {
-    "Disaster Relief": "Cứu trợ thiên tai",
-    "Food & Water": "Lương thực & Nước uống",
-    "Medical Aid": "Y tế & Thuốc men",
-    "Education": "Giáo dục & Học đường",
-    "Community Support": "Hỗ trợ cộng đồng",
-    "Emergency Shelter": "Trú ẩn khẩn cấp",
+    disaster_relief: "Cứu trợ thiên tai",
+    food_water: "Lương thực & Nước uống",
+    medical_aid: "Y tế & Thuốc men",
+    education: "Giáo dục & Học đường",
+    community_support: "Hỗ trợ cộng đồng",
+    emergency_shelter: "Trú ẩn khẩn cấp",
   },
 
   home: {

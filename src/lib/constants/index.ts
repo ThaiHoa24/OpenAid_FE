@@ -19,13 +19,15 @@ export const NAV_LINKS = [
 ];
 
 export const SUPPORT_CATEGORIES = [
-  { id: "Volunteer", label: "Tình nguyện viên", iconName: "Users" },
-  { id: "Rice & Food", label: "Gạo & Lương thực", iconName: "Apple" },
-  { id: "Water", label: "Nước sạch", iconName: "Droplets" },
-  { id: "Clothes", label: "Quần áo ấm", iconName: "Shirt" },
-  { id: "Medical Supplies", label: "Vật tư y tế", iconName: "HeartPulse" },
-  { id: "Study Supplies", label: "Dụng cụ học tập", iconName: "GraduationCap" },
+  { id: "disaster_relief", label: "Cứu trợ thiên tai", iconName: "AlertTriangle" },
+  { id: "food_water", label: "Lương thực & Nước uống", iconName: "Package" },
+  { id: "medical_aid", label: "Y tế & Thuốc men", iconName: "HeartPulse" },
+  { id: "education", label: "Giáo dục & Học đường", iconName: "GraduationCap" },
+  { id: "community_support", label: "Hỗ trợ cộng đồng", iconName: "Users" },
+  { id: "emergency_shelter", label: "Trú ẩn khẩn cấp", iconName: "Home" },
 ] as const;
+
+export type SupportCategoryId = typeof SUPPORT_CATEGORIES[number]["id"];
 
 export const AREAS = [
   "Tất cả khu vực",

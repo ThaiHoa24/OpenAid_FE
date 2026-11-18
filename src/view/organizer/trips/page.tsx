@@ -12,11 +12,12 @@ import { eventService, type EnrichedEvent } from "@/services/eventService";
 import { transparencyService } from "@/services/transparencyService";
 import { uploadService } from "@/services/uploadService";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { 
-  Truck, Plus, MapPin, Users, Package, 
-  CheckCircle2, Clock, AlertCircle, X, 
-  Loader2, ArrowRight, Play, Camera, ShieldCheck, Ban, UploadCloud 
+import {
+  Truck, Plus, MapPin, Users, Package,
+  CheckCircle2, Clock, AlertCircle, X,
+  Loader2, ArrowRight, Play, Camera, ShieldCheck, Ban, UploadCloud
 } from "lucide-react";
+import { TripStatus, DistributionPointStatus } from "@/types";
 
 export default function OrganizerTripsPage() {
   const { user, activeOrganization, isOrganizer, loginAsDemo } = useAuth();
@@ -210,7 +211,7 @@ export default function OrganizerTripsPage() {
     );
     if (reason === null) return;
     try {
-      await tripService.updateTripStatus(tripId, "CANCELLED", user, { cancelReason: reason });
+      await tripService.updateTripStatus(tripId, TripStatus.CANCELLED, user, { cancelReason: reason });
       showToast(t("common.deleteSuccess"), "info");
       loadData();
     } catch (err: any) {
@@ -253,7 +254,7 @@ export default function OrganizerTripsPage() {
       await tripService.recordDistribution({
         tripId: trip.id,
         distributionPointId: point.id,
-        batchId: targetBatch.id,
+        tripBatchId: targetBatch.id,
         distributedQuantity: distQty,
         note: distNote,
         markPointDistributed: true,
@@ -374,9 +375,9 @@ export default function OrganizerTripsPage() {
 
                 {/* Main Trip Status Controls */}
                 <div className="flex flex-wrap items-center gap-2">
-                  {tItem.status === "SCHEDULED" && (
+                  {tItem.status === TripStatus.SCHEDULED && (
                     <button
-                      onClick={() => handleUpdateTripStatus(tItem.id, "PREPARING")}
+                      onClick={() => handleUpdateTripStatus(tItem.id, TripStatus.PREPARING)}
                       className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
                     >
                       <Play className="w-3.5 h-3.5" />
@@ -384,9 +385,9 @@ export default function OrganizerTripsPage() {
                     </button>
                   )}
 
-                  {tItem.status === "PREPARING" && (
+                  {tItem.status === TripStatus.PREPARING && (
                     <button
-                      onClick={() => handleUpdateTripStatus(tItem.id, "IN_TRANSIT")}
+                      onClick={() => handleUpdateTripStatus(tItem.id, TripStatus.IN_TRANSIT)}
                       className="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
                     >
                       <Truck className="w-3.5 h-3.5" />
@@ -394,9 +395,9 @@ export default function OrganizerTripsPage() {
                     </button>
                   )}
 
-                  {tItem.status === "IN_TRANSIT" && (
+                  {tItem.status === TripStatus.IN_TRANSIT && (
                     <button
-                      onClick={() => handleUpdateTripStatus(tItem.id, "COMPLETED")}
+                      onClick={() => handleUpdateTripStatus(tItem.id, TripStatus.COMPLETED)}
                       className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
@@ -404,7 +405,7 @@ export default function OrganizerTripsPage() {
                     </button>
                   )}
 
-                  {tItem.status !== "COMPLETED" && tItem.status !== "CANCELLED" && !tItem.points.some((p) => p.status === "DISTRIBUTED") && (
+                  {tItem.status !== TripStatus.COMPLETED && tItem.status !== TripStatus.CANCELLED && !tItem.points.some((p) => p.status === "DISTRIBUTED") && (
                     <button
                       onClick={() => handleCancelTrip(tItem.id)}
                       className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
@@ -458,16 +459,16 @@ export default function OrganizerTripsPage() {
                       <div className="flex items-center justify-between text-xs text-slate-600 pt-2 border-t border-slate-200/60">
                         <span>{t("organizer.trips.plannedHouseholdsLabel", { count: pt.plannedHouseholds || 50 })}</span>
                         <div className="flex items-center gap-2">
-                          {pt.status === "PENDING" && (
+                          {pt.status === DistributionPointStatus.PENDING && (
                             <button
-                              onClick={() => handleUpdatePointStatus(pt.id, "ARRIVED")}
+                              onClick={() => handleUpdatePointStatus(pt.id, DistributionPointStatus.ARRIVED)}
                               className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-semibold transition-colors"
                             >
                               {t("organizer.trips.arrivedAtPointBtn")}
                             </button>
                           )}
 
-                          {(pt.status === "ARRIVED" || pt.status === "PENDING") && (
+                          {(pt.status === DistributionPointStatus.ARRIVED || pt.status === DistributionPointStatus.PENDING) && (
                             <>
                               <button
                                 onClick={() => {
@@ -482,7 +483,7 @@ export default function OrganizerTripsPage() {
                               <button
                                 onClick={() => {
                                   if (confirm(t("organizer.trips.confirmSkipPointPrompt", { name: pt.name }))) {
-                                    handleUpdatePointStatus(pt.id, "SKIPPED");
+                                    handleUpdatePointStatus(pt.id, DistributionPointStatus.SKIPPED);
                                   }
                                 }}
                                 className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[11px] font-semibold transition-colors"
@@ -492,14 +493,14 @@ export default function OrganizerTripsPage() {
                             </>
                           )}
 
-                          {pt.status === "DISTRIBUTED" && (
+                          {pt.status === DistributionPointStatus.DISTRIBUTED && (
                             <span className="text-emerald-700 font-bold flex items-center gap-1 text-[11px]">
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               {t("organizer.trips.pointCompletedBadge")}
                             </span>
                           )}
 
-                          {pt.status === "SKIPPED" && (
+                          {pt.status === DistributionPointStatus.SKIPPED && (
                             <span className="text-slate-400 font-semibold flex items-center gap-1 text-[11px]">
                               {t("organizer.trips.pointSkippedBadge")}
                             </span>

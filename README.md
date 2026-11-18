@@ -2,7 +2,7 @@
 
 OpenAid là nền tảng quản trị và điều phối chuỗi cung ứng cứu trợ hiện vật kết hợp vận hành đội ngũ tình nguyện viên thực địa. Hệ thống giải quyết bài toán cốt lõi về **tính minh bạch và liên kết khép kín** trong hoạt động từ thiện: từ lúc phát động chiến dịch, nhà hảo tâm cam kết gửi hiện vật, tiếp nhận nhập kho, đóng gói lô hàng, điều phối chuyến xe, phân công đội ngũ tình nguyện viên đến khi bàn giao tận tay đồng bào và tra cứu theo dõi bằng **Mã Vận Đơn (Tracking ID)** độc bản.
 
-Ứng dụng Frontend được xây dựng trên **Next.js 16.4.3 (App Router)**, **React 19.3.0**, **TypeScript 5** và **Tailwind CSS 4**, tích hợp trực tiếp với **OpenAid Backend API (`OpenAid_BE`)** thông qua `Axios` client + JWT Bearer Authentication.
+Ứng dụng Frontend được xây dựng trên **Next.js 15 (App Router)**, **React 19**, **TypeScript 5** và **Tailwind CSS 4**, tích hợp trực tiếp với **OpenAid Backend API (`OpenAid_BE`)** thông qua `Axios` client + JWT Bearer Authentication.
 
 > **Đề tài:** Đồ án Tốt nghiệp Capstone 1 (CMU-SE 450) – Viện Đào tạo Quốc tế, Đại học Duy Tân
 >
@@ -14,10 +14,10 @@ OpenAid là nền tảng quản trị và điều phối chuỗi cung ứng cứ
 
 | Thành phần | Công nghệ & Phiên bản | Ghi chú |
 | :--- | :--- | :--- |
-| **Framework** | Next.js 16.4.3 (App Router) | Webpack bundler (`next build --webpack`), tách biệt route shell `src/app/` và UI `src/view/` |
-| **Giao diện & Logic** | React 19.3.0, TypeScript 5 | Client Components tương tác cao, kiểm tra kiểu `strict` |
-| **Kết nối API & Bảo mật** | Axios 1.20 (`axiosClient`), JWT Bearer | Tự động đính kèm Access Token, unwrap response envelope (`res.data.data`), tự xóa token khi gặp `401` |
-| **Styling & Hiệu ứng** | Tailwind CSS 4, Lenis (`lenis`) | Bảng màu Forest Green (`#1F4D36`) & Amber (`#F28C1B`), smooth scrolling |
+| **Framework** | Next.js 15 (App Router) | Turbopack dev, tách biệt route shell `src/app/` và UI `src/view/` |
+| **Giao diện & Logic** | React 19, TypeScript 5 | Client Components tương tác cao, kiểm tra kiểu `strict` |
+| **Kết nối API & Bảo mật** | Axios (`axiosClient`), JWT Bearer | Tự động đính kèm Access Token, unwrap response envelope (`res.data.data`), tự xóa token khi gặp `401` |
+| **Styling & Hiệu ứng** | Tailwind CSS 4 | Bảng màu Forest Green (`#1F4D36`) & Amber (`#F28C1B`) |
 | **Hệ thống Icon** | Lucide React (`lucide-react`) | Bộ biểu tượng vector nhất quán |
 | **Đa ngôn ngữ (i18n)** | `LanguageProvider` (`vi` / `en`) | Hỗ trợ chuyển đổi Tiếng Việt & Tiếng Anh |
 | **Kiểm toán & Cân đối** | `verifyInventoryEquation` (`src/utils/`) | Xác minh phương trình bảo toàn kho vật tư (`NFR05`) trên giao diện |
@@ -47,31 +47,32 @@ TẦNG HỆ THỐNG (SystemRole)
 
 ---
 
-## Bản Đồ Điều Hướng (29 Routes)
+## Bản Đồ Điều Hướng (30 Routes)
 
 Tất cả các route trong `src/app/` là route shell re-export từ `src/view/`.
 
-### 1. Trang Công Khai & Xác Thực (11 routes)
+### 1. Trang Công Khai & Xác Thực (12 routes)
 | Đường dẫn | View Tương Ứng | Chức năng chính |
 | :--- | :--- | :--- |
 | `/` | `src/view/page.tsx` | Trang chủ: Hero slideshow, tính năng, chiến dịch nổi bật, quy trình |
 | `/about` | `src/view/about/page.tsx` | Giới thiệu sứ mệnh nền tảng OpenAid |
 | `/how-it-works` | `src/view/how-it-works/page.tsx` | Quy trình vận hành & minh bạch chuỗi cung ứng cứu trợ |
-| `/events` | `src/view/events/page.tsx` | Khám phá, tìm kiếm và lọc chiến dịch cứu trợ |
+| `/events` | `src/view/events/page.tsx` | Khám phá, tìm kiếm và lọc chiến dịch cứu trợ (load areas từ API) |
 | `/events/[id]` | `src/view/events/[id]/page.tsx` | Chi tiết chiến dịch: Tiến độ hiện vật, chỉ tiêu TNV, chuyến xe, minh bạch |
 | `/track` | `src/view/track/page.tsx` | Cổng tra cứu Mã Vận Đơn tập trung |
 | `/track/[trackingId]` | `src/view/track/[trackingId]/page.tsx` | Hành trình chi tiết công khai: Quyên góp, lô hàng, chuyến xe, điểm phát, ảnh thực địa |
 | `/login` | `src/view/(auth)/login/page.tsx` | Đăng nhập JWT & đăng nhập demo 1-Click |
 | `/register` | `src/view/(auth)/register/page.tsx` | Đăng ký tài khoản kèm OTP email & đăng ký tổ chức |
-| `/forgot-password` | `src/view/(auth)/forgot-password/page.tsx` | Khôi phục mật khẩu qua OTP email |
+| `/forgot-password` | `src/view/(auth)/forgot-password/page.tsx` | Khôi phục mật khẩu qua OTP email (3 bước: request → verify → reset) |
 | `/profile` | `src/view/profile/page.tsx` | Cập nhật hồ sơ cá nhân, tải ảnh đại diện & đăng ký tổ chức mới |
+| `/reset-data` | `src/view/reset-data/page.tsx` | Reset dữ liệu demo về trạng thái ban đầu |
 
 ### 2. Khu Vực Người Dùng Cá Nhân (4 routes)
 | Đường dẫn | View Tương Ứng | Chức năng chính |
 | :--- | :--- | :--- |
 | `/donate/[eventId]` | `src/view/donate/[eventId]/page.tsx` | Cam kết quyên góp hiện vật, tải ảnh kiện hàng, nhận Tracking ID |
 | `/volunteer/apply/[eventId]` | `src/view/volunteer/apply/[eventId]/page.tsx` | Nộp đơn ứng tuyển TNV chi tiết |
-| `/my/activities` | `src/view/my/activities/page.tsx` | Theo dõi đơn TNV, chuyến xe được phân công, mã QR & Check-in |
+| `/my/activities` | `src/view/my/activities/page.tsx` | Theo dõi đơn TNV, chuyến xe được phân công, Check-in/out |
 | `/my/donations` | `src/view/my/donations/page.tsx` | Theo dõi lịch sử quyên góp, sao chép Tracking ID, hủy đơn `PENDING` |
 
 ### 3. Khu Vực Ban Tổ Chức — Organizer (10 routes)
@@ -79,12 +80,12 @@ Tất cả các route trong `src/app/` là route shell re-export từ `src/view/
 | :--- | :--- | :--- |
 | `/organizer/dashboard` | `src/view/organizer/dashboard/page.tsx` | Trung tâm điều hành, Action Center, tiến độ nhu yếu phẩm & xuất báo cáo |
 | `/organizer/organization` | `src/view/organizer/organization/page.tsx` | Quản lý hồ sơ tổ chức & danh sách thành viên |
-| `/organizer/events` | `src/view/organizer/events/page.tsx` | Tạo mới & quản lý danh sách chiến dịch của tổ chức |
-| `/organizer/events/[id]` | `src/view/organizer/events/[id]/page.tsx` | Quản lý chi tiết chiến dịch: duyệt TNV, xem quyên góp, chỉnh sửa thông tin |
+| `/organizer/events` | `src/view/organizer/events/page.tsx` | Tạo mới & quản lý danh sách chiến dịch (category mới: disaster_relief, food_water, medical_aid, education, community_support, emergency_shelter) |
+| `/organizer/events/[id]` | `src/view/organizer/events/[id]/page.tsx` | Quản lý chi tiết chiến dịch: duyệt TNV, xem quyên góp, chỉnh sửa thông tin, thêm nhu cầu/điểm phát |
 | `/organizer/donations` | `src/view/organizer/donations/page.tsx` | Tiếp nhận hiện vật vào kho (`RECEIVED`) hoặc từ chối (`REJECTED`) |
-| `/organizer/inventory` | `src/view/organizer/inventory/page.tsx` | Sổ cái kho bãi & kiểm tra phương trình bảo toàn `NFR05` |
+| `/organizer/inventory` | `src/view/organizer/inventory/page.tsx` | Sổ cái kho bãi & kiểm tra phương trình bảo toàn `NFR05` (Received = Available + Reserved + Distributed + Lost) |
 | `/organizer/batches` | `src/view/organizer/batches/page.tsx` | Đóng gói lô hàng (`Batch`), chuyển `READY` và đối soát sau chuyến đi |
-| `/organizer/trips` | `src/view/organizer/trips/page.tsx` | Lập chuyến xe, phân công Trưởng đoàn & TNV, ghi nhận bàn giao & tải ảnh |
+| `/organizer/trips` | `src/view/organizer/trips/page.tsx` | Lập chuyến xe, phân công Trưởng đoàn & TNV, ghi nhận bàn giao **Atomic** (phân phối + ảnh minh chứng 1 transaction), tải ảnh |
 | `/organizer/volunteers` | `src/view/organizer/volunteers/page.tsx` | Duyệt/từ chối đơn ứng tuyển TNV & theo dõi điểm danh |
 | `/organizer/transparency` | `src/view/organizer/transparency/page.tsx` | Kiểm duyệt ảnh bằng chứng công khai & xem nhật ký minh bạch sự kiện |
 
@@ -94,7 +95,7 @@ Tất cả các route trong `src/app/` là route shell re-export từ `src/view/
 | `/admin/dashboard` | `src/view/admin/dashboard/page.tsx` | Thống kê toàn sàn, duyệt nhanh tổ chức & Live Audit Trail |
 | `/admin/organizations` | `src/view/admin/organizations/page.tsx` | Thẩm định hồ sơ tổ chức (`PENDING` → `APPROVED` / `REJECTED` / `SUSPENDED`) |
 | `/admin/users` | `src/view/admin/users/page.tsx` | Danh sách người dùng, tổ chức trực thuộc, khóa/mở khóa tài khoản |
-| `/admin/events` | `src/view/admin/events/page.tsx` | Giám sát, kiểm duyệt & xuất báo cáo toàn bộ chiến dịch |
+| `/admin/events` | `src/view/admin/events/page.tsx` | Giám sát, kiểm duyệt & xuất báo cáo toàn bộ chiến dịch (CSV/Excel/PDF) |
 
 ---
 
@@ -117,7 +118,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001/api
 # Cài đặt dependencies
 npm ci
 
-# Chạy chế độ phát triển
+# Chạy chế độ phát triển (Turbopack)
 npm run dev
 ```
 
@@ -132,7 +133,7 @@ npx tsc --noEmit
 # Kiểm tra lint
 npm run lint
 
-# Build bản Production (Webpack)
+# Build bản Production
 npm run build
 
 # Chạy bản Production
@@ -147,7 +148,7 @@ npm run start
 OpenAid_FE/
 ├── public/                        # Static assets & SVG icons
 ├── src/
-│   ├── app/                       # Next.js App Router (29 route shells re-export từ src/view/)
+│   ├── app/                       # Next.js App Router (30 route shells re-export từ src/view/)
 │   ├── view/                      # Giao diện, state & logic của từng trang
 │   │   ├── (auth)/                # /login, /register, /forgot-password
 │   │   ├── about/                 # /about
@@ -171,15 +172,41 @@ OpenAid_FE/
 │   ├── i18n/                      # Từ điển đa ngôn ngữ (vi.ts, types.ts)
 │   ├── lib/
 │   │   ├── api/                   # axiosClient, tokenStorage
-│   │   └── constants/             # Hằng số khu vực, bộ lọc
+│   │   └── constants/             # Hằng số khu vực, bộ lọc, support categories
 │   ├── providers/                 # LanguageProvider
 │   ├── services/                  # Tầng gọi REST API (admin, auth, batch, dashboard, donation,
 │   │                              # event, inventory, organization, transparency, trip, upload, volunteer)
 │   ├── styles/                    # globals.css & CSS Modules
-│   ├── types/                     # TypeScript Models & Interfaces
+│   ├── types/                     # TypeScript Models & Interfaces (70+ types đồng bộ với Prisma)
 │   └── utils/                     # Formatters, calculatePercentage, verifyInventoryEquation
 ├── next.config.ts
 ├── tsconfig.json
 ├── package.json
 └── README.md
 ```
+
+---
+
+## Các Cập Nhật Gần Đây (v2.1)
+
+| Phân loại | Thay đổi |
+|-----------|----------|
+| **Atomic Trip Distribution** | Endpoint mới `POST /trips/:id/distribute-with-evidence` kết hợp ghi nhận phân phối + upload ảnh minh chứng trong 1 transaction (rollback nếu fail) |
+| **Category System** | Hệ thống category mới: `disaster_relief`, `food_water`, `medical_aid`, `education`, `community_support`, `emergency_shelter` (slug format, đồng bộ FE/BE/i18n) |
+| **Areas Catalog** | Areas load động từ API `/events/catalogs/areas` thay vì constants cứng |
+| **Security** | Xóa hardcoded password `"123456"` trong `authService.login`, orgCode generation dùng timestamp-based để tránh collision |
+| **Trip Status Enum** | Sử dụng `TripStatus.PREPARING` thay vì string literal, an toàn type hơn |
+| **Distribution Record** | FE truyền `tripBatchId` trực tiếp thay vì lookup `batchId` (tránh race condition) |
+| **Missing Pages** | Thêm `/my/activities`, `/my/donations`, `/admin/users`, `/profile`, `/forgot-password` (3 bước OTP) |
+| **Enum Alignment** | `DistributionPointStatus` dùng enum type thay vì string literal |
+
+---
+
+## Tài khoản Demo (từ `OpenAid_BE/prisma/seed.mjs`)
+
+| Vai trò | Email | Mật khẩu |
+| :--- | :--- | :--- |
+| **Admin** | `admin@openaid.demo` | `123456` |
+| **Organizer** (Hội OpenAid Đà Nẵng) | `organizer@openaid.demo` | `123456` |
+| **User** (TNV / Nhà hảo tâm) | `user@openaid.demo` | `123456` |
+| **Volunteer B** | `volunteer.b@openaid.demo` | `123456` |

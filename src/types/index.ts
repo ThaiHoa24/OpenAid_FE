@@ -62,12 +62,12 @@ export interface OrganizationMember {
 export type EventStatus = "DRAFT" | "PUBLISHED" | "CLOSED" | "CANCELLED";
 
 export type SupportCategory =
-  | "Disaster Relief"
-  | "Food & Water"
-  | "Medical Aid"
-  | "Education"
-  | "Community Support"
-  | "Emergency Shelter";
+  | "disaster_relief"
+  | "food_water"
+  | "medical_aid"
+  | "education"
+  | "community_support"
+  | "emergency_shelter";
 
 export interface ItemType {
   id: string; // UUID v4

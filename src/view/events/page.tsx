@@ -14,7 +14,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { eventService, type EnrichedEvent } from "@/services/eventService";
-import { AREAS, TIME_FILTERS, SUPPORT_TYPES } from "@/lib/constants";
+import { TIME_FILTERS, SUPPORT_TYPES } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 
@@ -27,6 +27,8 @@ function EventsContent() {
   const [events, setEvents] = useState<EnrichedEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [areas, setAreas] = useState<string[]>([]);
+  const [areasLoading, setAreasLoading] = useState(true);
 
   // Filter states
   const [search, setSearch] = useState(initialQuery);
@@ -40,6 +42,13 @@ function EventsContent() {
     setSupportType("all");
     setTimeFilter("all");
   };
+
+  useEffect(() => {
+    eventService.getAreas().then((res) => {
+      setAreas(res);
+      setAreasLoading(false);
+    });
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -129,9 +138,11 @@ function EventsContent() {
             <select
               value={area}
               onChange={(e) => setArea(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-[#E5E7E0] bg-[#FAF9F6] focus:outline-none focus:border-[#1F4D36] cursor-pointer"
+              disabled={areasLoading}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-[#E5E7E0] bg-[#FAF9F6] focus:outline-none focus:border-[#1F4D36] cursor-pointer disabled:opacity-50"
             >
-              {AREAS.map((a) => (
+              <option value="Tất cả khu vực">Tất cả khu vực</option>
+              {areas.map((a) => (
                 <option key={a} value={a}>
                   {a}
                 </option>
@@ -321,7 +332,8 @@ function EventsContent() {
                   onChange={(e) => setArea(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-[#E5E7E0]"
                 >
-                  {AREAS.map((a) => (
+                  <option value="Tất cả khu vực">Tất cả khu vực</option>
+                  {areas.map((a) => (
                     <option key={a} value={a}>
                       {a}
                     </option>

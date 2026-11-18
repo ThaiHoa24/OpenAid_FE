@@ -1,17 +1,13 @@
 import type { SupportCategory } from "@/types";
+import { SUPPORT_CATEGORIES as SUPPORT_CATEGORIES_CONFIG, type SupportCategoryId } from "@/lib/constants";
 
 export const STORAGE_KEYS = {
   SESSION: "openaid_auth_session_v1",
 } as const;
 
-export const SUPPORT_CATEGORIES: SupportCategory[] = [
-  "Disaster Relief",
-  "Food & Water",
-  "Medical Aid",
-  "Education",
-  "Community Support",
-  "Emergency Shelter",
-];
+// Re-export with new structure
+export const SUPPORT_CATEGORIES = SUPPORT_CATEGORIES_CONFIG.map((c) => c.id) as SupportCategory[];
+export { type SupportCategoryId } from "@/lib/constants";
 
 export const STATUS_BADGE_STYLES: Record<string, string> = {
   // Event

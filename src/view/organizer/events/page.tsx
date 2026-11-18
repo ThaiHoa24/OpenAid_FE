@@ -8,7 +8,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { eventService, type EnrichedEvent, type CreateEventInput } from "@/services/eventService";
 import { uploadService } from "@/services/uploadService";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { SUPPORT_CATEGORIES } from "@/constants";
+import { SUPPORT_CATEGORIES, type SupportCategoryId } from "@/lib/constants";
 import { 
   Calendar, Plus, Trash2, Globe, 
   Ban, CheckCircle, MapPin, Users, Package, 
@@ -39,7 +39,7 @@ export default function OrganizerEventsPage() {
     contactPhone: user?.phone || "0905123456",
     contactEmail: user?.email || "contact@openaid.demo",
     imageUrl: "https://images.unsplash.com/photo-1547082299-de196ea013d6?w=800&auto=format&fit=crop&q=80",
-    category: "Disaster Relief",
+    category: "disaster_relief",
     organizationId: activeOrganization?.id || "",
     publishImmediately: true,
     volunteerRoles: [
@@ -405,8 +405,8 @@ export default function OrganizerEventsPage() {
                       className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
                     >
                       {SUPPORT_CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {t(`categories.${c}`) !== `categories.${c}` ? t(`categories.${c}`) : c}
+                        <option key={c.id} value={c.id}>
+                          {t(`categories.${c.id}`) !== `categories.${c.id}` ? t(`categories.${c.id}`) : c.label}
                         </option>
                       ))}
                     </select>

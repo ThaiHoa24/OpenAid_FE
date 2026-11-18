@@ -97,13 +97,17 @@ export const authService = {
     );
   },
 
-  async login(email: string, password?: string): Promise<SessionContext> {
+  async login(email: string, password: string): Promise<SessionContext> {
     const normalized = email.trim().toLowerCase();
+
+    if (!password || password.trim().length === 0) {
+      throw new Error("Mật khẩu là bắt buộc");
+    }
 
     // Call BE API directly
     const response = await apiClient.post<any, any>("/auth/login", {
       email: normalized,
-      password: password || "123456",
+      password: password.trim(),
     });
 
     if (!response || !response.accessToken || !response.user) {
@@ -197,15 +201,15 @@ export const authService = {
     let memberships: UserMembershipDetail[] = [];
     if (payload.createOrgName && payload.createOrgName.trim()) {
       try {
-        const orgCode =
+        const prefix =
           payload.createOrgName
             .trim()
             .split(/\s+/)
             .map((w) => w[0])
             .join("")
-            .toUpperCase() +
-          "-" +
-          Math.floor(100 + Math.random() * 900);
+            .toUpperCase() ||
+          "ORG";
+        const orgCode = `${prefix}-${Date.now().toString(36).toUpperCase()}`;
 
         createdOrg = await apiClient.post<any, Organization>("/organizations", {
           name: payload.createOrgName.trim(),
@@ -295,15 +299,15 @@ export const authService = {
     let memberships: UserMembershipDetail[] = [];
     if (payload.createOrgName && payload.createOrgName.trim()) {
       try {
-        const orgCode =
+        const prefix =
           payload.createOrgName
             .trim()
             .split(/\s+/)
             .map((w) => w[0])
             .join("")
-            .toUpperCase() +
-          "-" +
-          Math.floor(100 + Math.random() * 900);
+            .toUpperCase() ||
+          "ORG";
+        const orgCode = `${prefix}-${Date.now().toString(36).toUpperCase()}`;
 
         createdOrg = await apiClient.post<any, Organization>("/organizations", {
           name: payload.createOrgName.trim(),
