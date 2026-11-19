@@ -7,8 +7,9 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   User, Mail, Phone, Building2, ShieldCheck, HandHeart,
-  Loader2, AlertCircle, Save, Eye, EyeOff, Calendar
+  Loader2, AlertCircle, Save, Eye, EyeOff, Calendar, Package
 } from "lucide-react";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const { user, session, logout, updateProfile, refreshSession, loginAsDemo } = useAuth();
@@ -282,7 +283,7 @@ export default function ProfilePage() {
                       ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                       : "bg-slate-100 text-slate-600 border border-slate-200"
                   }`}>
-                    {t(`profile.org${m.role}Role`)}
+                    {t(`profile.org${m.role === "ORGANIZER" ? "Organizer" : "Member"}Role`)}
                   </span>
                   {m.role === "ORGANIZER" && (
                     <Link

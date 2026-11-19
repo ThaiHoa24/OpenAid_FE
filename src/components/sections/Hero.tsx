@@ -60,13 +60,13 @@ function formatDate(dateStr?: string): string {
 }
 
 export function Hero({ campaigns = [], isLoading = false }: HeroProps) {
-  // Chuẩn bị danh sách slide (tối đa 5 chiến dịch nổi bật, hoặc slide mặc định)
+  // Chuẩn bị danh sách slide (tất cả chiến dịch PUBLISHED, hoặc slide mặc định)
   const slides: SlideItem[] = useMemo(() => {
     if (!campaigns || campaigns.length === 0) {
       return [DEFAULT_SLIDE];
     }
 
-    return campaigns.slice(0, 5).map((evt) => ({
+    return campaigns.map((evt) => ({
       id: evt.id,
       title: evt.title,
       description: evt.description || "Chung tay tiếp ứng hiện vật và nguồn lực cho chiến dịch thiện nguyện vì cộng đồng.",
@@ -82,7 +82,7 @@ export function Hero({ campaigns = [], isLoading = false }: HeroProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Tự động chuyển slide mỗi 6 giây (nếu có nhiều hơn 1 slide và không bị pause)
+  // Tự động chuyển slide mỗi 7 giây (nếu có nhiều hơn 1 slide và không bị pause)
   useEffect(() => {
     if (slides.length <= 1 || isPaused) return;
 

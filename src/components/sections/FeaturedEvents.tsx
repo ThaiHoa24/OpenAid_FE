@@ -23,7 +23,7 @@ export function FeaturedEvents({
   // Nếu cha truyền props thì dùng props, ngược lại tự fetch fallback
   const isControlled = propCampaigns !== undefined;
   const isLoading = isControlled ? !!propIsLoading : internalLoading;
-  const events = isControlled ? (propCampaigns || []).slice(0, 3) : internalEvents;
+  const events = isControlled ? (propCampaigns || []) : internalEvents;
 
   useEffect(() => {
     if (isControlled) return;
@@ -33,7 +33,7 @@ export function FeaturedEvents({
       try {
         const res = await eventService.getAll({ status: "PUBLISHED" });
         if (isMounted) {
-          setInternalEvents(Array.isArray(res) ? res.slice(0, 3) : []);
+          setInternalEvents(Array.isArray(res) ? res : []);
         }
       } catch (err) {
         console.error("Lỗi khi tải danh sách chiến dịch trang chủ:", err);

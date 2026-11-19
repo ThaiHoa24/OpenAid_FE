@@ -492,6 +492,7 @@ export const vi = {
       closeReceptionBtn: "Đóng tiếp nhận",
       cancelCampaignBtn: "Hủy chiến dịch",
       reopenCampaignBtn: "Mở lại chiến dịch",
+      confirmCloseReception: "Bạn có chắc chắn muốn đóng tiếp nhận quyên góp cho chiến dịch này? Các khoản quyên góp mới sẽ không được chấp nhận.",
       confirmDeleteDraft: "Bạn có chắc chắn muốn xóa vĩnh viễn bản nháp chiến dịch này?",
       confirmCancelEvent: "Bạn có chắc chắn muốn hủy chiến dịch cứu trợ này (CANCELLED)?",
       modalCreateTitle: "Tạo Chiến Dịch Cứu Trợ Mới",

@@ -21,6 +21,9 @@ export interface User {
   status: UserStatus; // Synced alias: isActive ? 'ACTIVE' : 'DISABLED'
   createdAt: string;
   updatedAt?: string;
+  // Stats (computed from backend or session)
+  volunteerApplicationsCount?: number;
+  donationsCount?: number;
 }
 
 export type OrgStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";

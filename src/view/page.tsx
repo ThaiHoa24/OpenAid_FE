@@ -22,28 +22,8 @@ export default function HomePage() {
         if (!isMounted) return;
 
         if (Array.isArray(res)) {
-          // Lọc các chiến dịch hợp lệ
-          // Ưu tiên chiến dịch đang hoạt động (chưa hết hạn endDate nếu có)
-          const now = Date.now();
-          const activeCampaigns = res.filter((e) => {
-            if (!e.id || !e.title) return false;
-            if (e.status !== "PUBLISHED") return false;
-            if (e.endDate) {
-              const end = new Date(e.endDate).getTime();
-              // Nếu có ngày kết thúc và đã qua hơn 1 ngày thì không ưu tiên
-              if (!isNaN(end) && end < now - 24 * 60 * 60 * 1000) {
-                return false;
-              }
-            }
-            return true;
-          });
-
-          // Nếu có chiến dịch đang diễn ra thì dùng, ngược lại dùng tất cả chiến dịch PUBLISHED hợp lệ
-          const finalCampaigns =
-            activeCampaigns.length > 0
-              ? activeCampaigns
-              : res.filter((e) => e.id && e.title);
-
+          // Lấy TẤT CẢ chiến dịch PUBLISHED hợp lệ (không lọc theo endDate)
+          const finalCampaigns = res.filter((e) => e.id && e.title && e.status === "PUBLISHED");
           setCampaigns(finalCampaigns);
         } else {
           setCampaigns([]);

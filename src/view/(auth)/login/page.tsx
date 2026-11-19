@@ -47,7 +47,7 @@ export default function LoginPage() {
       if (result.user.systemRole === "ADMIN") {
         router.push("/admin/dashboard");
       } else {
-        router.push("/events");
+        router.push("/");
       }
     } else {
       showToast(result.error || "Đăng nhập thất bại", "error");
@@ -68,7 +68,7 @@ export default function LoginPage() {
       } else if (demoEmail.includes("organizer")) {
         router.push("/organizer/dashboard");
       } else {
-        router.push("/events");
+        router.push("/");
       }
     }
   };

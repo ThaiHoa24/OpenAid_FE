@@ -278,7 +278,6 @@ export default function OrganizerEventsPage() {
 
                 <Link
                   href={`/events/${ev.id}`}
-                  target="_blank"
                   className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   {t("common.viewPublic")}
@@ -309,7 +308,11 @@ export default function OrganizerEventsPage() {
                 {ev.status === "PUBLISHED" && (
                   <>
                     <button
-                      onClick={() => handleStatusChange(ev.id, "CLOSED")}
+                      onClick={() => {
+                        if (confirm(t("organizer.events.confirmCloseReception"))) {
+                          handleStatusChange(ev.id, "CLOSED");
+                        }
+                      }}
                       className="px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                     >
                       <CheckCircle className="w-3.5 h-3.5" />
