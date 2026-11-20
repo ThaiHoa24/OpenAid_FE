@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -32,6 +32,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isOrganizerRoute = pathname?.startsWith("/organizer");
   const isAdminRoute = pathname?.startsWith("/admin");
   const isAuthRoute = pathname === "/login" || pathname === "/register";
+  const isHomePage = pathname === "/";
+
+  useEffect(() => {
+    if (!isAuthRoute) return;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, [isAuthRoute]);
 
   const organizerLinks = [
     { href: "/organizer/dashboard", label: "Tổng quan điều phối", icon: LayoutDashboard },
@@ -55,7 +68,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div
       className={
         isAuthRoute
-          ? "min-h-screen w-full bg-[#141822] text-white flex flex-col overflow-x-hidden"
+          ? "h-screen w-full bg-[#141822] text-white flex flex-col overflow-hidden"
           : "min-h-screen flex flex-col bg-[#FAF9F6] text-[#1C2B24] overflow-x-clip"
       }
     >
@@ -232,7 +245,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       ) : (
-        <main className="flex-1">{children}</main>
+        <main
+          className={`flex-1 ${
+            isHomePage ? "" : isAuthRoute ? "h-full overflow-hidden" : "pt-20 pb-10"
+          }`}
+        >
+          {children}
+        </main>
       )}
 
       {/* Floating Role Workspace Return Button if user navigated to public tabs */}

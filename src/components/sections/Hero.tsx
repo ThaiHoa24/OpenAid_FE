@@ -88,21 +88,24 @@ export function Hero({ campaigns = [], isLoading = false }: HeroProps) {
 
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
-    }, 6000);
+    }, 7000);
 
     return () => clearInterval(timer);
   }, [slides.length, isPaused]);
 
-  // Điều hướng trước / sau
+  // Điều hướng trước / sau - reset pause khi user chủ động chuyển slide
   const goToPrev = useCallback(() => {
+    setIsPaused(false);
     setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
   }, [slides.length]);
 
   const goToNext = useCallback(() => {
+    setIsPaused(false);
     setCurrentIndex((prev) => (prev + 1) % slides.length);
   }, [slides.length]);
 
   const goToSlide = useCallback((index: number) => {
+    setIsPaused(false);
     setCurrentIndex(index);
   }, []);
 
@@ -112,7 +115,7 @@ export function Hero({ campaigns = [], isLoading = false }: HeroProps) {
   // Trạng thái đang tải dữ liệu ban đầu
   if (isLoading) {
     return (
-      <section className="relative w-full overflow-hidden min-h-[calc(100svh-76px)] lg:h-[calc(100svh-76px)] lg:max-h-[850px] bg-[#0A2317] flex items-center">
+      <section className="relative w-full overflow-hidden h-[100svh] min-h-[100svh] bg-[#0A2317] flex items-center pt-20 sm:pt-24">
         <div className="max-w-[1240px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-16 animate-pulse space-y-6">
           <div className="w-48 h-6 bg-white/10 rounded-full" />
           <div className="w-3/4 max-w-xl h-12 bg-white/10 rounded-2xl" />
@@ -128,7 +131,7 @@ export function Hero({ campaigns = [], isLoading = false }: HeroProps) {
 
   return (
     <section
-      className="relative w-full overflow-hidden min-h-[calc(100svh-76px)] lg:h-[calc(100svh-76px)] lg:max-h-[850px] flex items-center"
+      className="relative w-full overflow-hidden h-[100svh] min-h-[100svh] flex items-center pt-20 sm:pt-24"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onFocus={() => setIsPaused(true)}
@@ -166,11 +169,11 @@ export function Hero({ campaigns = [], isLoading = false }: HeroProps) {
 
       {/* 2. Hiển thị ảnh trực tiếp, tự nhiên 100%, không dùng lớp phủ toàn màn hình làm tối hay mờ ảnh */}
 
-      {/* 3. Nội dung chữ nằm trực tiếp trên ảnh, lệch về bên trái, gọn gàng, kéo lên cao và 2 nút nhỏ kéo thấp xuống, dịch sang trái và lên trên ~40px */}
+      {/* 3. Nội dung chữ nằm trực tiếp trên ảnh, lệch về bên trái, căn giữa viewport */}
       <div className="max-w-[1240px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 h-full flex flex-col justify-center relative z-20">
-        <div className="max-w-md sm:max-w-lg lg:max-w-[480px] -translate-y-[56px] sm:-translate-y-[68px] lg:-translate-y-[76px] -translate-x-0 sm:-translate-x-3 md:-translate-x-6 lg:-translate-x-[80px] text-white mr-auto">
-          {/* Khối nội dung chiến dịch (kéo lên trên thêm tầm 30px) */}
-          <div className="-translate-y-[30px] space-y-3 sm:space-y-3.5">
+        <div className="max-w-md sm:max-w-lg lg:max-w-[480px] -translate-y-[20px] sm:-translate-y-[24px] lg:-translate-y-[28px] -translate-x-0 sm:-translate-x-3 md:-translate-x-6 lg:-translate-x-[80px] text-white mr-auto">
+          {/* Khối nội dung chiến dịch */}
+          <div className="space-y-3 sm:space-y-3.5">
             {/* Dòng nhỏ phía trên (Eyebrow) */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/50 border border-white/20 text-[#DAF1DE] text-[11px] sm:text-xs font-bold tracking-wider uppercase shadow-md">
               <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />

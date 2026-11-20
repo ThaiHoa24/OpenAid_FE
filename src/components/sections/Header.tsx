@@ -32,6 +32,7 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const isAuthPage = isTransparent ?? (pathname === "/login" || pathname === "/register");
+  const isHomePage = pathname === "/";
   const { user, isOrganizer, isAdmin, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -123,7 +124,7 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
   // Header Scroll Shadow
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 15);
+      setIsScrolled(window.scrollY > 20);
     };
 
     handleScroll();
@@ -145,12 +146,16 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
 
   return (
     <header
-      className={`z-40 w-full transition-all duration-300 ${
+      className={`z-40 w-full transition-all duration-300 fixed top-0 left-0 right-0 py-3.5 ${
         isAuthPage
-          ? "fixed top-0 left-0 right-0 bg-[#141822]/40 backdrop-blur-md py-3 border-b border-white/5"
+          ? "bg-[#141822]/40 backdrop-blur-md border-b border-white/5"
+          : isHomePage
+          ? isScrolled
+            ? "bg-white/85 backdrop-blur-xl shadow-card border-b border-[#E5E7E0]/90"
+            : "bg-transparent"
           : isScrolled
-          ? "sticky top-0 bg-white/85 backdrop-blur-xl shadow-card border-b border-[#E5E7E0]/90 py-2.5"
-          : "sticky top-0 bg-[#FAF9F6]/85 backdrop-blur-md py-3.5 border-b border-black/[0.03]"
+            ? "bg-white/85 backdrop-blur-xl shadow-card border-b border-[#E5E7E0]/90"
+            : "bg-[#FAF9F6]/85 backdrop-blur-md border-b border-black/[0.03]"
       }`}
     >
       <div className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -171,7 +176,11 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
           <div className="flex flex-col">
             <span
               className={`font-bold text-2xl tracking-tight leading-tight flex items-center gap-0.5 ${
-                isAuthPage ? "text-white" : "text-[#1C2B24]"
+                isAuthPage
+                  ? "text-white"
+                  : isHomePage && !isScrolled
+                  ? "text-white"
+                  : "text-[#1C2B24]"
               }`}
             >
               Open<span className={isAuthPage ? "text-emerald-400" : "text-[#1F4D36]"}>Aid</span>
@@ -179,7 +188,11 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
             </span>
             <span
               className={`text-[10px] font-bold tracking-widest uppercase ${
-                isAuthPage ? "text-gray-400" : "text-[#4A5850]"
+                isAuthPage
+                  ? "text-gray-400"
+                  : isHomePage && !isScrolled
+                  ? "text-white/70"
+                  : "text-[#4A5850]"
               }`}
             >
               {APP_CONFIG.tagline}
@@ -193,13 +206,19 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
           className={`relative hidden lg:flex items-center p-1 rounded-full border shadow-2xs backdrop-blur-xs ${
             isAuthPage
               ? "bg-white/5 border-white/10"
+              : isHomePage && !isScrolled
+              ? "bg-white/10 border-white/20"
               : "bg-black/[0.035] border-[#E5E7E0]/80"
           }`}
         >
           {/* Elastic Rubber Segment Sliding Pill */}
           <div
             className={`${styles.navIndicator} absolute rounded-full ${
-              isAuthPage ? "bg-white/15 border border-white/10" : "bg-white border border-[#E5E7E0]"
+              isAuthPage
+                ? "bg-white/15 border border-white/10"
+                : isHomePage && !isScrolled
+                ? "bg-white/20 border border-white/30"
+                : "bg-white border border-[#E5E7E0]"
             } shadow-[0_2px_10px_rgba(0,0,0,0.08)] pointer-events-none transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] z-0`}
             style={{
               "--indicator-left": `${indicatorStyle.left}px`,
@@ -223,9 +242,13 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
                 onClick={(e) => handleNavClick(e, link)}
                 className={`relative z-10 px-4 py-1.5 rounded-full text-sm font-semibold transition-colors duration-250 select-none ${
                   isActive
-                    ? "text-[#F28C1B] font-bold"
+                    ? isHomePage && !isScrolled
+                      ? "text-white font-bold"
+                      : "text-[#F28C1B] font-bold"
                     : isAuthPage
                     ? "text-gray-300 hover:text-white"
+                    : isHomePage && !isScrolled
+                    ? "text-white/80 hover:text-white"
                     : "text-[#1C2B24] hover:text-[#1F4D36]"
                 }`}
               >
@@ -261,6 +284,8 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
             className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all shadow-xs ${
               isAuthPage
                 ? "border-white/10 hover:border-emerald-400 text-gray-300 hover:text-white hover:bg-white/10"
+                : isHomePage && !isScrolled
+                ? "border-white/20 hover:border-emerald-400 text-white/80 hover:text-white hover:bg-white/10"
                 : "border-[#E5E7E0] hover:border-[#1F4D36] text-[#1C2B24] hover:text-[#1F4D36] hover:bg-[#E6EFE3]/60"
             }`}
             title="Tra cứu vận đơn"
@@ -274,6 +299,8 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
             className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all shadow-xs ${
               isAuthPage
                 ? "border-white/10 hover:border-[#F28C1B] text-gray-300 hover:text-[#F28C1B] hover:bg-white/10"
+                : isHomePage && !isScrolled
+                ? "border-white/20 hover:border-[#F28C1B] text-white/80 hover:text-[#F28C1B] hover:bg-white/10"
                 : "border-[#E5E7E0] hover:border-[#F28C1B] text-[#1C2B24] hover:text-[#F28C1B] hover:bg-amber-50/60"
             }`}
             title={user ? "Đóng góp của tôi" : "Khám phá chiến dịch"}
@@ -289,6 +316,8 @@ export function Header({ isTransparent }: { isTransparent?: boolean } = {}) {
               className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all shadow-xs cursor-pointer ${
                 isAuthPage
                   ? "border-white/10 hover:border-emerald-400 text-gray-300 hover:text-white hover:bg-white/10"
+                  : isHomePage && !isScrolled
+                  ? "border-white/20 hover:border-emerald-400 text-white/80 hover:text-white hover:bg-white/10"
                   : "border-[#E5E7E0] hover:border-[#1F4D36] text-[#1C2B24] hover:text-[#1F4D36] hover:bg-[#E6EFE3]/60"
               }`}
               title={user ? user.name : "Tài khoản"}

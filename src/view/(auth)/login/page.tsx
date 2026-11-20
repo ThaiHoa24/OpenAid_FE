@@ -74,7 +74,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#141822] text-white flex items-center justify-center pt-16 pb-6 px-4 sm:px-6 lg:px-8">
+    <div className="relative h-full w-full bg-[#141822] text-white flex flex-col overflow-hidden pt-20 pb-6 px-4 sm:px-6 lg:px-8">
       {/* Fixed Full-screen Background: Bound strictly to Viewport so it NEVER stretches or distorts */}
       <div className="fixed inset-0 w-screen h-screen pointer-events-none select-none overflow-hidden z-0 bg-[#141822]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
