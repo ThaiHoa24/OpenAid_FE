@@ -77,7 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Area */}
       {isOrganizerRoute || isAdminRoute ? (
-        <div className="flex-1 flex max-w-[1440px] w-full mx-auto">
+        <div className="flex-1 flex max-w-[1440px] w-full mx-auto pt-20">
           {/* Console Sidebar */}
           <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-[#E5E7E0] bg-white/70 py-6 px-4">
             {isOrganizerRoute ? (
@@ -217,7 +217,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </aside>
 
           {/* Console Body */}
-          <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">
+          <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20">
             {/* Mobile Subnav Strip */}
             <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-3 mb-6 -mx-4 px-4 scrollbar-none border-b border-[#E5E7E0]">
               {(isOrganizerRoute ? organizerLinks : adminLinks).map((item) => {
