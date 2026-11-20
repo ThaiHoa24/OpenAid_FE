@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [loginError, setLoginError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
 
   const validate = () => {
@@ -36,6 +37,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError("");
     if (!validate()) return;
 
     setIsLoading(true);
@@ -50,7 +52,15 @@ export default function LoginPage() {
         router.push("/");
       }
     } else {
-      showToast(result.error || "Đăng nhập thất bại", "error");
+      const rawError = result.error || "";
+      const isInvalidCreds =
+        !rawError ||
+        /invalid credentials|unauthorized|incorrect|wrong|not found|401/i.test(rawError);
+      const message = isInvalidCreds
+        ? "Sai tên tài khoản hoặc mật khẩu. Vui lòng thử lại."
+        : rawError;
+      setLoginError(message);
+      showToast(message, "error");
     }
   };
 
@@ -58,6 +68,7 @@ export default function LoginPage() {
     setEmail(demoEmail);
     setPassword("123456");
     setErrors({});
+    setLoginError("");
     setIsLoading(true);
     const result = await login(demoEmail, "123456");
     setIsLoading(false);
@@ -167,6 +178,7 @@ export default function LoginPage() {
                         onChange={(e) => {
                           setEmail(e.target.value);
                           if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                          if (loginError) setLoginError("");
                         }}
                         placeholder="user@openaid.demo"
                         className="bg-transparent text-white text-xs sm:text-sm outline-none w-full pr-8 placeholder:text-gray-500 font-medium"
@@ -198,6 +210,7 @@ export default function LoginPage() {
                         onChange={(e) => {
                           setPassword(e.target.value);
                           if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                          if (loginError) setLoginError("");
                         }}
                         placeholder="••••••••"
                         className="bg-transparent text-white text-xs sm:text-sm outline-none w-full pr-8 placeholder:text-gray-500 font-medium"
@@ -215,6 +228,12 @@ export default function LoginPage() {
                     <p className="text-[10px] font-semibold text-rose-400 pl-2">{errors.password}</p>
                   )}
                 </div>
+
+                {loginError && (
+                  <p className="text-xs font-semibold text-rose-400 pl-1">
+                    {loginError}
+                  </p>
+                )}
 
                 {/* Switch link */}
                 <div className="flex items-center justify-between text-xs text-gray-400 pt-0.5">

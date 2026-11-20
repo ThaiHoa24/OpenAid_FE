@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -17,7 +17,6 @@ import {
   CheckCircle2, Clock, AlertCircle, X,
   Loader2, ArrowRight, Play, Camera, ShieldCheck, Ban, UploadCloud
 } from "lucide-react";
-import { TripStatus, DistributionPointStatus } from "@/types";
 
 export default function OrganizerTripsPage() {
   const { user, activeOrganization, isOrganizer, loginAsDemo } = useAuth();
@@ -45,15 +44,18 @@ export default function OrganizerTripsPage() {
     { name: "Thôn Cẩm Toại", address: "Xã Hòa Phong, Huyện Hòa Vang", plannedHouseholds: 60 },
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingDeps, setIsLoadingDeps] = useState(false);
+  const handledQueryRef = useRef(false);
 
   // Record Distribution Modal State
   const [recordingPoint, setRecordingPoint] = useState<{ trip: EnrichedTrip; point: any } | null>(null);
-  const [distQty, setDistQty] = useState<number>(50);
+  const [batchDistributions, setBatchDistributions] = useState<
+    Record<string, { selected: boolean; quantity: number }>
+  >({});
   const [distNote, setDistNote] = useState<string>("Bà con trật tự nhận quà theo danh sách thôn");
   const [evidenceUrl, setEvidenceUrl] = useState<string>("https://images.unsplash.com/photo-1593113630400-ea4288922497?w=800&auto=format&fit=crop&q=80");
   const [evidenceCaption, setEvidenceCaption] = useState<string>("Bàn giao quà cứu trợ tại nhà văn hóa thôn");
   const [privacyConfirmed, setPrivacyConfirmed] = useState<boolean>(true);
-  const [selectedRecordBatchId, setSelectedRecordBatchId] = useState<string>("");
   const [isUploadingEvidence, setIsUploadingEvidence] = useState<boolean>(false);
 
   const handleEvidenceFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,6 +73,16 @@ export default function OrganizerTripsPage() {
     }
   };
 
+  // Sync initial selectedEventId from URL query (?eventId=...)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const qEventId = params.get("eventId");
+    if (qEventId) {
+      setSelectedEventId(qEventId);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     if (!activeOrganization) {
       setIsLoading(false);
@@ -84,58 +96,95 @@ export default function OrganizerTripsPage() {
       ]);
       setTrips(tList);
       setEvents(evs);
-      if (evs.length > 0 && !createEventId) {
-        setCreateEventId(evs[0].id);
-      }
     } catch (err) {
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [activeOrganization, createEventId, selectedEventId]);
+  }, [activeOrganization, selectedEventId]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // When opening create modal, load ready batches and approved volunteers
-  const handleOpenCreateModal = async () => {
-    if (events.length === 0) {
-      showToast(t("organizer.trips.noReadyBatchesAlert"), "warning");
-      return;
-    }
-    const targetEvId = createEventId || events[0].id;
-    setCreateEventId(targetEvId);
-    setShowCreateModal(true);
-    await fetchTripDependencies(targetEvId);
-  };
+  const fetchTripDependencies = useCallback(
+    async (evId: string) => {
+      if (!evId) return;
+      setIsLoadingDeps(true);
+      try {
+        const [batches, vols] = await Promise.all([
+          batchService.getReadyBatchesForEvent(evId),
+          volunteerService.getApprovedVolunteersForEvent(evId),
+        ]);
+        setReadyBatches(batches);
+        setSelectedBatchIds(batches.map((b) => b.id));
+        setApprovedVolunteers(vols);
 
-  const fetchTripDependencies = async (evId: string) => {
-    try {
-      const [batches, vols] = await Promise.all([
-        batchService.getReadyBatchesForEvent(evId),
-        volunteerService.getApprovedVolunteersForEvent(evId),
-      ]);
-      setReadyBatches(batches);
-      setSelectedBatchIds(batches.map((b) => b.id));
-      setApprovedVolunteers(vols);
+        if (vols.length > 0) {
+          setLeaderUserId(vols[0].userId);
+          setAssignedVolunteers(
+            vols.map((v, i) => ({
+              applicationId: v.id,
+              userId: v.userId,
+              role: i === 0 ? "LEADER" : "MEMBER",
+            }))
+          );
+        } else {
+          setLeaderUserId(user?.id || "");
+          setAssignedVolunteers([]);
+        }
 
-      if (vols.length > 0) {
-        setLeaderUserId(vols[0].userId);
-        setAssignedVolunteers(vols.map((v, i) => ({
-          applicationId: v.id,
-          userId: v.userId,
-          role: i === 0 ? "LEADER" : "MEMBER",
-        })));
-      } else {
-        setLeaderUserId(user?.id || "");
+        setTripName(
+          `CHUYẾN_XE_CỨU_TRỢ_${new Date()
+            .toLocaleDateString("vi-VN")
+            .replace(/\//g, "")}`
+        );
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoadingDeps(false);
+      }
+    },
+    [user?.id]
+  );
+
+  // When opening create modal, pick the active/published campaign and load its batches & volunteers
+  const handleOpenCreateModal = useCallback(
+    async (overrideEventId?: string) => {
+      const publishedEvents = events.filter((ev) => ev.status === "PUBLISHED");
+      const candidateList = publishedEvents.length > 0 ? publishedEvents : events;
+
+      if (candidateList.length === 0) {
+        showToast("Chưa có chiến dịch cứu trợ nào đang phát động để lập chuyến xe.", "warning");
+        return;
       }
 
-      setTripName(`CHUYẾN_XE_CỨU_TRỢ_${new Date().toLocaleDateString("vi-VN").replace(/\//g, "")}`);
-    } catch (err) {
-      console.error(err);
+      const targetEvId =
+        overrideEventId ||
+        (selectedEventId !== "ALL" && events.some((ev) => ev.id === selectedEventId)
+          ? selectedEventId
+          : candidateList[0].id);
+
+      setCreateEventId(targetEvId);
+      setShowCreateModal(true);
+      await fetchTripDependencies(targetEvId);
+    },
+    [events, fetchTripDependencies, selectedEventId, showToast]
+  );
+
+  // Auto-open create modal when arriving via /organizer/trips?eventId=...&create=true
+  useEffect(() => {
+    if (handledQueryRef.current || events.length === 0 || typeof window === "undefined") {
+      return;
     }
-  };
+    const params = new URLSearchParams(window.location.search);
+    const qEventId = params.get("eventId");
+    const shouldCreate = params.get("create") === "true";
+    if (shouldCreate && qEventId && events.some((ev) => ev.id === qEventId)) {
+      handledQueryRef.current = true;
+      handleOpenCreateModal(qEventId);
+    }
+  }, [events, handleOpenCreateModal]);
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,7 +260,7 @@ export default function OrganizerTripsPage() {
     );
     if (reason === null) return;
     try {
-      await tripService.updateTripStatus(tripId, TripStatus.CANCELLED, user, { cancelReason: reason });
+      await tripService.updateTripStatus(tripId, "CANCELLED", user, { cancelReason: reason });
       showToast(t("common.deleteSuccess"), "info");
       loadData();
     } catch (err: any) {
@@ -219,57 +268,85 @@ export default function OrganizerTripsPage() {
     }
   };
 
-  // Submit Distribution Record
+  // Submit Distribution Record (Supports multiple batches / item types per point)
   const handleRecordDistributionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !recordingPoint) return;
-    if (distQty <= 0) {
-      showToast(t("organizer.trips.distQtyAtPointLabel"), "error");
-      return;
-    }
     if (!privacyConfirmed) {
       showToast(t("organizer.trips.privacyConsentText"), "error");
       return;
     }
 
     const { trip, point } = recordingPoint;
-    const targetBatch =
-      trip.batches.find((b) => b.id === selectedRecordBatchId) || trip.batches[0];
-    if (!targetBatch) {
-      showToast(t("organizer.trips.noTrips"), "error");
+    const selectedItems = trip.batches
+      .map((batch) => {
+        const entry = batchDistributions[batch.id];
+        const remaining =
+          batch.remainingQuantity ??
+          Math.max(0, batch.totalQuantity - (batch.distributedQuantity || 0));
+        return {
+          batch,
+          selected: Boolean(entry?.selected),
+          quantity: Number(entry?.quantity ?? 0),
+          remaining,
+        };
+      })
+      .filter((item) => item.selected);
+
+    if (selectedItems.length === 0) {
+      showToast("Vui lòng chọn ít nhất 1 lô hàng để phân phát tại điểm này.", "error");
       return;
     }
 
-    const remainingInBatch =
-      targetBatch.remainingQuantity ??
-      targetBatch.totalQuantity - (targetBatch.distributedQuantity || 0);
-
-    if (distQty > remainingInBatch) {
-      showToast(t("organizer.trips.overBatchLimitWarning"), "error");
-      return;
+    for (const item of selectedItems) {
+      if (item.quantity <= 0) {
+        showToast(
+          `Số lượng phát của lô ${item.batch.batchCode} (${item.batch.itemType}) phải lớn hơn 0.`,
+          "error"
+        );
+        return;
+      }
+      if (item.quantity > item.remaining) {
+        showToast(
+          `${item.batch.batchCode} (${item.batch.itemType}): ${t("organizer.trips.overBatchLimitWarning")}`,
+          "error"
+        );
+        return;
+      }
     }
 
     setIsSubmitting(true);
     try {
-      await tripService.recordDistribution({
-        tripId: trip.id,
-        distributionPointId: point.id,
-        tripBatchId: targetBatch.id,
-        distributedQuantity: distQty,
-        note: distNote,
-        markPointDistributed: true,
-      }, user);
+      for (const item of selectedItems) {
+        await tripService.recordDistribution(
+          {
+            tripId: trip.id,
+            distributionPointId: point.id,
+            tripBatchId: (item.batch as any).tripBatchId || item.batch.id,
+            distributedQuantity: item.quantity,
+            note: distNote,
+            markPointDistributed: true,
+          },
+          user
+        );
+      }
 
-      await transparencyService.uploadEvidence({
-        tripId: trip.id,
-        distributionPointId: point.id,
-        batchId: targetBatch.id,
-        imageUrl: evidenceUrl,
-        caption: evidenceCaption,
-        privacyConfirmed: true,
-      }, user);
+      await transparencyService.uploadEvidence(
+        {
+          tripId: trip.id,
+          distributionPointId: point.id,
+          batchId: selectedItems[0].batch.id,
+          imageUrl: evidenceUrl,
+          caption: evidenceCaption,
+          privacyConfirmed: true,
+        },
+        user
+      );
 
-      showToast(t("common.saveSuccess"), "success");
+      showToast(
+        `Đã ghi nhận phân phát ${selectedItems.length} loại hiện vật tại ${point.name}!`,
+        "success"
+      );
       setRecordingPoint(null);
       loadData();
     } catch (err: any) {
@@ -331,8 +408,8 @@ export default function OrganizerTripsPage() {
           </select>
 
           <button
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-sm transition-colors shrink-0"
+            onClick={() => handleOpenCreateModal()}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-sm transition-colors shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             {t("organizer.trips.scheduleNewTripBtn")}
@@ -375,9 +452,9 @@ export default function OrganizerTripsPage() {
 
                 {/* Main Trip Status Controls */}
                 <div className="flex flex-wrap items-center gap-2">
-                  {tItem.status === TripStatus.SCHEDULED && (
+                  {tItem.status === "SCHEDULED" && (
                     <button
-                      onClick={() => handleUpdateTripStatus(tItem.id, TripStatus.PREPARING)}
+                      onClick={() => handleUpdateTripStatus(tItem.id, "PREPARING")}
                       className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
                     >
                       <Play className="w-3.5 h-3.5" />
@@ -385,9 +462,9 @@ export default function OrganizerTripsPage() {
                     </button>
                   )}
 
-                  {tItem.status === TripStatus.PREPARING && (
+                  {tItem.status === "PREPARING" && (
                     <button
-                      onClick={() => handleUpdateTripStatus(tItem.id, TripStatus.IN_TRANSIT)}
+                      onClick={() => handleUpdateTripStatus(tItem.id, "IN_TRANSIT")}
                       className="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
                     >
                       <Truck className="w-3.5 h-3.5" />
@@ -395,9 +472,9 @@ export default function OrganizerTripsPage() {
                     </button>
                   )}
 
-                  {tItem.status === TripStatus.IN_TRANSIT && (
+                  {tItem.status === "IN_TRANSIT" && (
                     <button
-                      onClick={() => handleUpdateTripStatus(tItem.id, TripStatus.COMPLETED)}
+                      onClick={() => handleUpdateTripStatus(tItem.id, "COMPLETED")}
                       className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
@@ -405,7 +482,7 @@ export default function OrganizerTripsPage() {
                     </button>
                   )}
 
-                  {tItem.status !== TripStatus.COMPLETED && tItem.status !== TripStatus.CANCELLED && !tItem.points.some((p) => p.status === "DISTRIBUTED") && (
+                  {tItem.status !== "COMPLETED" && tItem.status !== "CANCELLED" && !tItem.points.some((p) => p.status === "DISTRIBUTED") && (
                     <button
                       onClick={() => handleCancelTrip(tItem.id)}
                       className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
@@ -456,23 +533,47 @@ export default function OrganizerTripsPage() {
                         <StatusBadge status={pt.status} />
                       </div>
 
+                      {pt.records && pt.records.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {pt.records.map((rec) => (
+                            <span
+                              key={rec.id}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] font-medium text-emerald-800"
+                            >
+                              <Package className="w-3 h-3 text-emerald-600" />
+                              {rec.itemType || rec.batchCode}: <strong>{rec.distributedQuantity} {rec.unit}</strong>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between text-xs text-slate-600 pt-2 border-t border-slate-200/60">
                         <span>{t("organizer.trips.plannedHouseholdsLabel", { count: pt.plannedHouseholds || 50 })}</span>
                         <div className="flex items-center gap-2">
-                          {pt.status === DistributionPointStatus.PENDING && (
+                          {pt.status === "PENDING" && (
                             <button
-                              onClick={() => handleUpdatePointStatus(pt.id, DistributionPointStatus.ARRIVED)}
+                              onClick={() => handleUpdatePointStatus(pt.id, "ARRIVED")}
                               className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-semibold transition-colors"
                             >
                               {t("organizer.trips.arrivedAtPointBtn")}
                             </button>
                           )}
 
-                          {(pt.status === DistributionPointStatus.ARRIVED || pt.status === DistributionPointStatus.PENDING) && (
+                          {(pt.status === "ARRIVED" || pt.status === "PENDING") && (
                             <>
                               <button
                                 onClick={() => {
-                                  setSelectedRecordBatchId(tItem.batches[0]?.id || "");
+                                  const initialDist: Record<string, { selected: boolean; quantity: number }> = {};
+                                  tItem.batches.forEach((b) => {
+                                    const rem =
+                                      b.remainingQuantity ??
+                                      Math.max(0, b.totalQuantity - (b.distributedQuantity || 0));
+                                    initialDist[b.id] = {
+                                      selected: rem > 0,
+                                      quantity: rem > 0 ? Math.min(pt.plannedHouseholds || 50, rem) : 0,
+                                    };
+                                  });
+                                  setBatchDistributions(initialDist);
                                   setRecordingPoint({ trip: tItem, point: pt });
                                 }}
                                 className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold transition-colors flex items-center gap-1"
@@ -483,7 +584,7 @@ export default function OrganizerTripsPage() {
                               <button
                                 onClick={() => {
                                   if (confirm(t("organizer.trips.confirmSkipPointPrompt", { name: pt.name }))) {
-                                    handleUpdatePointStatus(pt.id, DistributionPointStatus.SKIPPED);
+                                    handleUpdatePointStatus(pt.id, "SKIPPED");
                                   }
                                 }}
                                 className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[11px] font-semibold transition-colors"
@@ -493,14 +594,14 @@ export default function OrganizerTripsPage() {
                             </>
                           )}
 
-                          {pt.status === DistributionPointStatus.DISTRIBUTED && (
+                          {pt.status === "DISTRIBUTED" && (
                             <span className="text-emerald-700 font-bold flex items-center gap-1 text-[11px]">
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               {t("organizer.trips.pointCompletedBadge")}
                             </span>
                           )}
 
-                          {pt.status === DistributionPointStatus.SKIPPED && (
+                          {pt.status === "SKIPPED" && (
                             <span className="text-slate-400 font-semibold flex items-center gap-1 text-[11px]">
                               {t("organizer.trips.pointSkippedBadge")}
                             </span>
@@ -552,79 +653,172 @@ export default function OrganizerTripsPage() {
 
       {/* Record Distribution & Upload Evidence Modal */}
       {recordingPoint && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-5 shadow-2xl my-8">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div
+          onClick={() => setRecordingPoint(null)}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-lg w-full max-h-[88vh] flex flex-col shadow-2xl overflow-hidden"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0">
               <div>
                 <h3 className="text-base font-bold text-slate-900">{t("organizer.trips.modalRecordTitle")}</h3>
                 <p className="text-xs text-slate-500 mt-0.5">{recordingPoint.point.name}</p>
               </div>
               <button
+                type="button"
                 onClick={() => setRecordingPoint(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleRecordDistributionSubmit} className="space-y-4 text-xs">
-              {/* Batch Selector */}
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  {t("organizer.trips.selectBatchToDistribute")}
-                </label>
-                <select
-                  value={selectedRecordBatchId || (recordingPoint.trip.batches[0]?.id ?? "")}
-                  onChange={(e) => {
-                    setSelectedRecordBatchId(e.target.value);
-                    const b = recordingPoint.trip.batches.find(x => x.id === e.target.value);
-                    if (b) {
-                      const rem = b.remainingQuantity ?? (b.totalQuantity - (b.distributedQuantity || 0));
-                      if (distQty > rem) {
-                        setDistQty(rem > 0 ? rem : 1);
-                      }
+            <form onSubmit={handleRecordDistributionSubmit} className="flex flex-col flex-1 min-h-0 text-xs">
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {/* Multi-Batch Selector & Per-Item Quantities */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block font-semibold text-slate-700">
+                    Chọn các Lô hàng &amp; số lượng phân phát tại điểm này *
+                  </label>
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    Đã chọn{" "}
+                    {
+                      recordingPoint.trip.batches.filter(
+                        (b) => batchDistributions[b.id]?.selected
+                      ).length
                     }
-                  }}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900 bg-white font-medium text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {recordingPoint.trip.batches.map((b) => {
-                    const rem = b.remainingQuantity ?? (b.totalQuantity - (b.distributedQuantity || 0));
-                    return (
-                      <option key={b.id} value={b.id}>
-                        {b.batchCode} — {b.itemType} ({t("organizer.trips.remainingInBatchLabel", { rem, unit: b.unit })})
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+                    /{recordingPoint.trip.batches.length} lô
+                  </span>
+                </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  {t("organizer.trips.distQtyAtPointLabel")}
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={distQty}
-                  onChange={(e) => setDistQty(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900 font-bold text-sm"
-                />
-                {(() => {
-                  const currentBatch =
-                    recordingPoint.trip.batches.find((b) => b.id === selectedRecordBatchId) ||
-                    recordingPoint.trip.batches[0];
-                  const rem = currentBatch
-                    ? currentBatch.remainingQuantity ?? (currentBatch.totalQuantity - (currentBatch.distributedQuantity || 0))
-                    : 0;
-                  const isOver = distQty > rem;
-                  return (
-                    <span className={`text-[11px] mt-1 block ${isOver ? "text-rose-600 font-bold" : "text-slate-500"}`}>
-                      {t("organizer.trips.remainingInBatchLabel", { rem, unit: currentBatch?.unit || "" })}
-                      {isOver && ` — ${t("organizer.trips.overBatchLimitWarning")}`}
-                    </span>
-                  );
-                })()}
+                {recordingPoint.trip.batches.length === 0 ? (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                    Chuyến xe chưa có lô hàng nào được gán.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {recordingPoint.trip.batches.map((b) => {
+                      const rem =
+                        b.remainingQuantity ??
+                        Math.max(0, b.totalQuantity - (b.distributedQuantity || 0));
+                      const entry = batchDistributions[b.id] || {
+                        selected: false,
+                        quantity: 0,
+                      };
+                      const isOver = entry.selected && entry.quantity > rem;
+                      const isInvalid = entry.selected && entry.quantity <= 0;
+                      const isDepleted = rem <= 0;
+
+                      return (
+                        <div
+                          key={b.id}
+                          className={`p-3 rounded-xl border transition-all ${
+                            isDepleted
+                              ? "bg-slate-50 border-slate-200 opacity-60"
+                              : entry.selected
+                              ? isOver || isInvalid
+                                ? "bg-rose-50/50 border-rose-300"
+                                : "bg-emerald-50/40 border-emerald-300"
+                              : "bg-white border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <label
+                              className={`flex items-start gap-2.5 flex-1 min-w-0 ${
+                                isDepleted ? "cursor-not-allowed" : "cursor-pointer"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                disabled={isDepleted}
+                                checked={entry.selected}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setBatchDistributions((prev) => ({
+                                    ...prev,
+                                    [b.id]: {
+                                      selected: checked,
+                                      quantity: checked
+                                        ? prev[b.id]?.quantity > 0
+                                          ? Math.min(prev[b.id].quantity, rem)
+                                          : Math.min(recordingPoint.point.plannedHouseholds || 50, rem)
+                                        : prev[b.id]?.quantity || 0,
+                                    },
+                                  }));
+                                }}
+                                className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                              />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-mono font-bold text-slate-900">
+                                    {b.batchCode}
+                                  </span>
+                                  <span className="text-slate-700 font-semibold truncate">
+                                    — {b.itemType}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-slate-500 mt-0.5">
+                                  {isDepleted ? (
+                                    <span className="text-rose-500 font-semibold">Đã phát hết</span>
+                                  ) : (
+                                    t("organizer.trips.remainingInBatchLabel", {
+                                      rem,
+                                      unit: b.unit,
+                                    })
+                                  )}
+                                </div>
+                              </div>
+                            </label>
+
+                            {entry.selected && !isDepleted && (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={rem}
+                                  required
+                                  value={entry.quantity}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    setBatchDistributions((prev) => ({
+                                      ...prev,
+                                      [b.id]: {
+                                        selected: true,
+                                        quantity: Number.isNaN(val) ? 0 : val,
+                                      },
+                                    }));
+                                  }}
+                                  className={`w-20 px-2.5 py-1.5 border rounded-lg text-right font-bold text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 ${
+                                    isOver || isInvalid
+                                      ? "border-rose-400 focus:ring-rose-400"
+                                      : "border-slate-300 focus:ring-emerald-500"
+                                  }`}
+                                />
+                                <span className="text-[11px] font-medium text-slate-600 min-w-[42px]">
+                                  {b.unit}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {isOver && (
+                            <p className="text-[11px] font-semibold text-rose-600 mt-1.5 pl-6">
+                              {t("organizer.trips.overBatchLimitWarning")} (Tối đa: {rem} {b.unit})
+                            </p>
+                          )}
+                          {isInvalid && (
+                            <p className="text-[11px] font-semibold text-rose-600 mt-1.5 pl-6">
+                              Số lượng phân phát phải lớn hơn 0.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -702,8 +896,9 @@ export default function OrganizerTripsPage() {
                   </label>
                 </div>
               </div>
+              </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+              <div className="px-6 py-3.5 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0 bg-white">
                 <button
                   type="button"
                   onClick={() => setRecordingPoint(null)}
@@ -712,17 +907,22 @@ export default function OrganizerTripsPage() {
                   {t("common.cancel")}
                 </button>
                 {(() => {
-                  const currentBatch =
-                    recordingPoint.trip.batches.find((b) => b.id === selectedRecordBatchId) ||
-                    recordingPoint.trip.batches[0];
-                  const rem = currentBatch
-                    ? currentBatch.remainingQuantity ?? (currentBatch.totalQuantity - (currentBatch.distributedQuantity || 0))
-                    : 0;
-                  const isOver = distQty > rem;
+                  const selectedBatches = recordingPoint.trip.batches.filter(
+                    (b) => batchDistributions[b.id]?.selected
+                  );
+                  const hasInvalidQty = selectedBatches.some((b) => {
+                    const rem =
+                      b.remainingQuantity ??
+                      Math.max(0, b.totalQuantity - (b.distributedQuantity || 0));
+                    const qty = Number(batchDistributions[b.id]?.quantity ?? 0);
+                    return qty <= 0 || qty > rem;
+                  });
+                  const isDisabled =
+                    isSubmitting || selectedBatches.length === 0 || hasInvalidQty;
                   return (
                     <button
                       type="submit"
-                      disabled={isSubmitting || isOver}
+                      disabled={isDisabled}
                       className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
@@ -738,174 +938,245 @@ export default function OrganizerTripsPage() {
 
       {/* Create Trip Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-5 shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div
+          onClick={() => setShowCreateModal(false)}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-2xl w-full max-h-[88vh] flex flex-col shadow-2xl overflow-hidden"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0">
               <div>
                 <h3 className="text-base font-bold text-slate-900">{t("organizer.trips.modalCreateTitle")}</h3>
                 <p className="text-xs text-slate-500 mt-0.5">{t("organizer.trips.modalCreateSubtitle")}</p>
               </div>
               <button
+                type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">{t("organizer.trips.tripNameLabel")}</label>
-                <input
-                  type="text"
-                  required
-                  value={tripName}
-                  onChange={(e) => setTripName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900 font-bold"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form onSubmit={handleCreateSubmit} className="flex flex-col flex-1 min-h-0 text-xs">
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                {/* Campaign / Event Selector */}
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">{t("organizer.trips.departurePointLabel")}</label>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Chiến dịch cứu trợ đang phát động *
+                  </label>
+                  <select
+                    required
+                    value={createEventId}
+                    onChange={(e) => {
+                      const nextEvId = e.target.value;
+                      setCreateEventId(nextEvId);
+                      fetchTripDependencies(nextEvId);
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900 bg-white font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  >
+                    {events
+                      .filter((ev) => ev.status === "PUBLISHED" || ev.id === createEventId)
+                      .map((ev) => (
+                        <option key={ev.id} value={ev.id}>
+                          {ev.title} {ev.status !== "PUBLISHED" ? `(${ev.status})` : ""}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">{t("organizer.trips.tripNameLabel")}</label>
                   <input
                     type="text"
                     required
-                    value={departurePoint}
-                    onChange={(e) => setDeparturePoint(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900"
+                    value={tripName}
+                    onChange={(e) => setTripName(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900 font-bold"
                   />
                 </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">{t("organizer.trips.scheduledDateLabel")}</label>
-                  <input
-                    type="date"
-                    required
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900"
-                  />
-                </div>
-              </div>
 
-              {/* Ready Batches Selection */}
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <span className="font-semibold text-slate-800">
-                  {t("organizer.trips.selectReadyBatchesTitle", { count: readyBatches.length })}
-                </span>
-                {readyBatches.length > 0 ? (
-                  <div className="space-y-2 max-h-36 overflow-y-auto border border-slate-200 rounded-xl p-2.5 bg-slate-50">
-                    {readyBatches.map((b) => (
-                      <label key={b.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 cursor-pointer">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedBatchIds.includes(b.id)}
-                            onChange={() => {
-                              if (selectedBatchIds.includes(b.id)) {
-                                setSelectedBatchIds(selectedBatchIds.filter(id => id !== b.id));
-                              } else {
-                                setSelectedBatchIds([...selectedBatchIds, b.id]);
-                              }
-                            }}
-                            className="rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-                          />
-                          <div>
-                            <span className="font-mono font-bold text-slate-800">{b.batchCode}</span>
-                            <span className="text-slate-500 ml-2">({b.itemType})</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">{t("organizer.trips.departurePointLabel")}</label>
+                    <input
+                      type="text"
+                      required
+                      value={departurePoint}
+                      onChange={(e) => setDeparturePoint(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">{t("organizer.trips.scheduledDateLabel")}</label>
+                    <input
+                      type="date"
+                      required
+                      value={scheduledDate}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Ready Batches Selection */}
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-800">
+                      {t("organizer.trips.selectReadyBatchesTitle", { count: readyBatches.length })}
+                    </span>
+                    {isLoadingDeps && (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-sky-600">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Đang tải...
+                      </span>
+                    )}
+                  </div>
+                  {readyBatches.length > 0 ? (
+                    <div className="space-y-2 max-h-36 overflow-y-auto border border-slate-200 rounded-xl p-2.5 bg-slate-50">
+                      {readyBatches.map((b) => (
+                        <label key={b.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedBatchIds.includes(b.id)}
+                              onChange={() => {
+                                if (selectedBatchIds.includes(b.id)) {
+                                  setSelectedBatchIds(selectedBatchIds.filter(id => id !== b.id));
+                                } else {
+                                  setSelectedBatchIds([...selectedBatchIds, b.id]);
+                                }
+                              }}
+                              className="rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                            />
+                            <div>
+                              <span className="font-mono font-bold text-slate-800">{b.batchCode}</span>
+                              <span className="text-slate-500 ml-2">({b.itemType})</span>
+                            </div>
                           </div>
-                        </div>
-                        <span className="font-bold text-slate-900">{b.totalQuantity} {b.unit}</span>
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-3 bg-amber-50 rounded-xl text-amber-900 border border-amber-200 text-xs">
-                    {t("organizer.trips.noReadyBatchesAlert")}
-                  </div>
-                )}
-              </div>
+                          <span className="font-bold text-slate-900">{b.totalQuantity} {b.unit}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-amber-50 rounded-xl text-amber-900 border border-amber-200 text-xs">
+                      {t("organizer.trips.noReadyBatchesAlert")}
+                    </div>
+                  )}
+                </div>
 
-              {/* Volunteer Assignment */}
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <span className="font-semibold text-slate-800">
-                  {t("organizer.trips.assignLeaderAndVolunteersTitle", { count: approvedVolunteers.length })}
-                </span>
-                {approvedVolunteers.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto">
-                    {approvedVolunteers.map((v) => (
-                      <div key={v.id} className="p-2.5 rounded-xl border border-slate-200 bg-white flex items-center justify-between">
-                        <div>
-                          <div className="font-bold text-slate-900">{v.user?.name}</div>
-                          <div className="text-[10px] text-slate-400">{v.role?.name}</div>
+                {/* Volunteer Assignment */}
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <span className="font-semibold text-slate-800">
+                    {t("organizer.trips.assignLeaderAndVolunteersTitle", { count: approvedVolunteers.length })}
+                  </span>
+                  {approvedVolunteers.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto">
+                      {approvedVolunteers.map((v) => (
+                        <div key={v.id} className="p-2.5 rounded-xl border border-slate-200 bg-white flex items-center justify-between">
+                          <div>
+                            <div className="font-bold text-slate-900">{v.user?.name}</div>
+                            <div className="text-[10px] text-slate-400">{v.role?.name}</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setLeaderUserId(v.userId)}
+                            className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
+                              leaderUserId === v.userId ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                          >
+                            {leaderUserId === v.userId ? t("organizer.trips.leaderBadge") : t("organizer.trips.makeLeaderBtn")}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setLeaderUserId(v.userId)}
-                          className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${
-                            leaderUserId === v.userId ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
-                        >
-                          {leaderUserId === v.userId ? t("organizer.trips.leaderBadge") : t("organizer.trips.makeLeaderBtn")}
-                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-slate-500 text-xs italic">
+                      {t("organizer.trips.noVolunteersAlert")}
+                    </div>
+                  )}
+                </div>
+
+                {/* Distribution Points */}
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-800">
+                      {t("organizer.trips.scheduleDestinationsTitle", { count: distributionPoints.length })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDistributionPoints([
+                          ...distributionPoints,
+                          { name: "", address: "", plannedHouseholds: 50 },
+                        ])
+                      }
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold text-[11px] border border-sky-200 transition cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Thêm điểm dừng
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {distributionPoints.map((pt, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="font-bold text-slate-400 w-4 text-center">{idx + 1}.</span>
+                        <input
+                          type="text"
+                          required
+                          value={pt.name}
+                          onChange={(e) => {
+                            const updated = [...distributionPoints];
+                            updated[idx] = { ...updated[idx], name: e.target.value };
+                            setDistributionPoints(updated);
+                          }}
+                          placeholder={t("organizer.trips.pointNamePlaceholder")}
+                          className="flex-1 px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900"
+                        />
+                        <input
+                          type="text"
+                          required
+                          value={pt.address}
+                          onChange={(e) => {
+                            const updated = [...distributionPoints];
+                            updated[idx] = { ...updated[idx], address: e.target.value };
+                            setDistributionPoints(updated);
+                          }}
+                          placeholder={t("organizer.trips.pointAddressPlaceholder")}
+                          className="flex-1 px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900"
+                        />
+                        {distributionPoints.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDistributionPoints(distributionPoints.filter((_, i) => i !== idx))
+                            }
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                            title="Xóa điểm dừng"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div className="text-slate-500 text-xs italic">
-                    {t("organizer.trips.noVolunteersAlert")}
-                  </div>
-                )}
-              </div>
-
-              {/* Distribution Points */}
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <span className="font-semibold text-slate-800">
-                  {t("organizer.trips.scheduleDestinationsTitle", { count: distributionPoints.length })}
-                </span>
-                <div className="space-y-2">
-                  {distributionPoints.map((pt, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="font-bold text-slate-400 w-4 text-center">{idx + 1}.</span>
-                      <input
-                        type="text"
-                        value={pt.name}
-                        onChange={(e) => {
-                          const updated = [...distributionPoints];
-                          updated[idx].name = e.target.value;
-                          setDistributionPoints(updated);
-                        }}
-                        placeholder={t("organizer.trips.pointNamePlaceholder")}
-                        className="flex-1 px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900"
-                      />
-                      <input
-                        type="text"
-                        value={pt.address}
-                        onChange={(e) => {
-                          const updated = [...distributionPoints];
-                          updated[idx].address = e.target.value;
-                          setDistributionPoints(updated);
-                        }}
-                        placeholder={t("organizer.trips.pointAddressPlaceholder")}
-                        className="flex-1 px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900"
-                      />
-                    </div>
-                  ))}
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+              <div className="px-6 py-3.5 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0 bg-white">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold"
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold cursor-pointer"
                 >
                   {t("common.cancel")}
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || selectedBatchIds.length === 0}
-                  className="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-semibold shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  disabled={isSubmitting || isLoadingDeps || !createEventId || selectedBatchIds.length === 0}
+                  className="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-semibold shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
                   {t("organizer.trips.submitCreateTripBtn")}

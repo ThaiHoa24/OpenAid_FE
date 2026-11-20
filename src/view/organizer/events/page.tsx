@@ -12,7 +12,7 @@ import { SUPPORT_CATEGORIES, type SupportCategoryId } from "@/lib/constants";
 import { 
   Calendar, Plus, Trash2, Globe, 
   Ban, CheckCircle, MapPin, Users, Package, 
-  X, Loader2, ArrowUpRight, UploadCloud 
+  X, Loader2, ArrowUpRight, UploadCloud, Truck 
 } from "lucide-react";
 
 export default function OrganizerEventsPage() {
@@ -307,6 +307,13 @@ export default function OrganizerEventsPage() {
 
                 {ev.status === "PUBLISHED" && (
                   <>
+                    <Link
+                      href={`/organizer/trips?eventId=${ev.id}&create=true`}
+                      className="px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Truck className="w-3.5 h-3.5" />
+                      <span>Phát động chuyến xe</span>
+                    </Link>
                     <button
                       onClick={() => {
                         if (confirm(t("organizer.events.confirmCloseReception"))) {
